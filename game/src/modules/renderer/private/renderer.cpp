@@ -1,7 +1,6 @@
 #include "renderer.h"
 
-#include <iostream>
-
+//      --To be removed--
 static GLfloat indices[] = {
           2.0f, 0.0f, 0.0f, 0.0f, 2.0f,
           0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
@@ -13,7 +12,24 @@ static GLfloat indices[] = {
           -1.0f, 2.0f, -1.0f, 1002.0f, 0.0f
 };
 
-int points = sizeof(indices)/(sizeof(GLfloat)*4);
+struct lightstruct {
+  float Position[4];
+  float Intensity[3];
+  float Attenuation;
+  float AmbientCoefficent;
+};
+
+lightstruct LightArray[] = {
+  {{-1.0, 13.0, 2.0, 0.0}, {0.5, 1.0, 1.0}, 0.2, 0.005},
+  {{-2.0, -2.0, 1.0, 1.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
+  {{0.0, -13.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, 0.2, 0.005},
+  {{-2.0, 3.0, 1.0, 0.0}, {0.5, 0.5, 0.5}, 0.2, 0.005}
+};
+
+uint64_t InputArray[1][2] {{32960, 1}};
+//      -- --
+
+unsigned int renderer::BlankVertexArray;
 renderer* renderer::ThisPointer;
 
 void quitCallback(void* Pointer) {
@@ -25,7 +41,7 @@ void APIENTRY openglCallbackFunction(GLenum source, GLenum type, GLuint id, GLen
   (void)severity; (void)length; (void)userParam;*/
   renderer::ThisPointer->request("Logger", "log", renderer::ThisPointer->getName(), std::string(message)); 
   if (severity == GL_DEBUG_SEVERITY_HIGH) {
-    std::string Log = std::string(message) + "Aborting...\n";
+    std::string Log = "Aborting...\n";
     renderer::ThisPointer->request("Logger", "log", renderer::ThisPointer->getName(), Log);
     renderer::ThisPointer->request("Window", "quit");
   }
@@ -52,6 +68,11 @@ void renderer::prepare() {
   preparePrograms();
   prepareBuffers();
   prepareUniforms();
+ 
+  ProgramManager.installProgram("ComputeProgram");
+  glDispatchCompute(1, 1, 1); // Max 8 x 8 x 8
+  glGenVertexArrays(1, &BlankVertexArray);
+  glBindVertexArray(BlankVertexArray);
 
   // Enable the debug callback
   glEnable(GL_DEBUG_OUTPUT);
@@ -61,130 +82,114 @@ void renderer::prepare() {
 
   std::string Log = ProgramManager.getLog() + BufferManager.getLog() + UniformManager.getLog();
   request("Logger", "log", getName(), Log);
-
-  GLint Size;
-  glGetIntegerv(GL_MAX_SHADER_STORAGE_BLOCK_SIZE, &Size);
-  std::cerr << Size;
 }
 
 void renderer::preparePrograms() {
   ProgramManager.createShader("intermediate/vertex.vert.glsl", GL_VERTEX_SHADER);
-  ProgramManager.createShader("intermediate/voxelator.geo.glsl", GL_GEOMETRY_SHADER);
   ProgramManager.createShader("intermediate/fragment.frag.glsl", GL_FRAGMENT_SHADER);
+  ProgramManager.createShader("intermediate/startup_block_decoder.comp.glsl", GL_COMPUTE_SHADER);
+
+  ProgramManager.createProgram("ComputeProgram");
+  ProgramManager.addShader("ComputeProgram", "intermediate/startup_block_decoder.comp.glsl");
+  ProgramManager.linkProgram("ComputeProgram");
 
   ProgramManager.createProgram("Program");
-  ProgramManager.addShader("Program", "intermediate/vertex.vert.glsl", "intermediate/voxelator.geo.glsl", "intermediate/fragment.frag.glsl");
+  ProgramManager.addShader("Program", "intermediate/vertex.vert.glsl", "intermediate/fragment.frag.glsl");
   ProgramManager.linkProgram("Program");
   ProgramManager.installProgram("Program");
 }
 
-GLuint FrameBufferObject, FrameBufferTexture, RenderBufferObject;
-
 void renderer::prepareBuffers() {
-  int ElementSize = 5 * sizeof(GLfloat);
-  BufferManager.createBuffers(3, "ColourBuffer", "LightBuffer", "VertexBuffer");
-  BufferManager.createVertexArrays(3, "PointCoordinates", "Colour", "BlockLevel");
+  BufferManager.createBuffers(4, "InputBuffer", "StorageBuffer", "ColourBuffer", "LightBuffer");
 
-  GLuint ColourBindingPoint = 1;
-  ProgramManager.setUniformBinding("Program", INDEX, GL_UNIFORM_BLOCK, "ColourUniform", ColourBindingPoint);
+  GLuint InputBindingPoint = 1;
+  ProgramManager.setBinding("ComputeProgram", GL_UNIFORM_BLOCK, "InputBuffer", InputBindingPoint);
+  BufferManager.setBuffer("InputBuffer", GL_UNIFORM_BUFFER, sizeof(InputArray), InputArray, GL_STATIC_DRAW); // Actual Size: 4194304
+  BufferManager.bindBuffer("InputBuffer", InputBindingPoint);
+
+  GLuint StorageBindingPoint = 2;
+  ProgramManager.setBinding("ComputeProgram", GL_SHADER_STORAGE_BLOCK, "StorageBuffer", StorageBindingPoint);
+  ProgramManager.setBinding("Program", GL_SHADER_STORAGE_BLOCK, "StorageBuffer", StorageBindingPoint);
+  BufferManager.setBuffer("StorageBuffer", GL_SHADER_STORAGE_BLOCK, 60000000, nullptr, GL_STATIC_DRAW);
+  BufferManager.bindBuffer("StorageBuffer", StorageBindingPoint);
+
+  GLuint ColourBindingPoint = 3;
+  ProgramManager.setBinding("Program", GL_UNIFORM_BLOCK, "ColourUniform", ColourBindingPoint);
   BufferManager.setBuffer("ColourBuffer", GL_UNIFORM_BUFFER, sizeof(ColourArray), ColourArray, GL_STATIC_DRAW);
   BufferManager.bindBuffer("ColourBuffer", ColourBindingPoint);
 
-  struct lightstruct {
-    float Position[4];
-    float Intensity[3];
-    float Attenuation;
-    float AmbientCoefficent;
-  };
-
-  lightstruct LightArray[] = {
-    {{2.0, 2.0, 2.0, 1.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
-    {{-2.0, -2.0, 1.0, 1.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
-    {{0.0, -13.0, 0.0, 0.0}, {0.0, 1.0, 1.0}, 0.2, 0.005},
-    {{-2.0, 3.0, 1.0, 0.0}, {0.5, 0.5, 0.5}, 0.2, 0.005}
-  };
-
-  GLuint LightBindingPoint = 2;
-  ProgramManager.setUniformBinding("Program", INDEX, GL_UNIFORM_BLOCK, "LightUniform", LightBindingPoint);
+  GLuint LightBindingPoint = 4;
+  ProgramManager.setBinding("Program", GL_UNIFORM_BLOCK, "LightUniform", LightBindingPoint);
   BufferManager.setBuffer("LightBuffer", GL_UNIFORM_BUFFER, sizeof(LightArray), LightArray, GL_DYNAMIC_DRAW);
   BufferManager.bindBuffer("LightBuffer", LightBindingPoint);
 
-  BufferManager.setBuffer("VertexBuffer", GL_ARRAY_BUFFER, sizeof(indices), indices, GL_DYNAMIC_DRAW);
-  BufferManager.bindBuffer("VertexBuffer");
-
-  BufferManager.setVertexArray("PointCoordinates", 0, 3, GL_FLOAT, GL_FALSE, ElementSize, nullptr);
-  BufferManager.setVertexArray("Colour", 1, 1, GL_FLOAT, GL_TRUE, ElementSize, (const GLvoid*)(3 * sizeof(GLfloat)));
-  BufferManager.setVertexArray("BlockLevel", 2, 1, GL_FLOAT, GL_TRUE, ElementSize, (const void*)(4 * sizeof(GLfloat)));
-
+  GLuint FrameBufferTexture;
   int num_samples = 32;
   glGenTextures( 1, &FrameBufferTexture );
   glBindTexture( GL_TEXTURE_2D_MULTISAMPLE, FrameBufferTexture );
   glTexImage2DMultisample( GL_TEXTURE_2D_MULTISAMPLE, num_samples, GL_RGBA8, WindowData.WindowWidth, WindowData.WindowHeight, true );
   glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
-	
-  glGenRenderbuffers(1, &RenderBufferObject);
-  glBindRenderbuffer(GL_RENDERBUFFER, RenderBufferObject);
-  glRenderbufferStorageMultisample(GL_RENDERBUFFER, num_samples, GL_DEPTH24_STENCIL8, WindowData.WindowWidth, WindowData.WindowHeight);
-  glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
-  glGenFramebuffers( 1, &FrameBufferObject );
-  glBindFramebuffer( GL_FRAMEBUFFER, FrameBufferObject );
-  glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, FrameBufferTexture, 0 );
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderBufferObject);
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  BufferManager.createRenderBuffers(1, "RenderBuffer");
+  BufferManager.setRenderBuffer("RenderBuffer", num_samples, GL_DEPTH24_STENCIL8, WindowData.WindowWidth, WindowData.WindowHeight);
+
+  BufferManager.createFrameBuffers(1, "FrameBuffer");
+  BufferManager.setFrameBuffer("FrameBuffer", GL_COLOR_ATTACHMENT0, FrameBufferTexture, 0);
+  BufferManager.setFrameBuffer("FrameBuffer", "RenderBuffer");
 }
 
 void renderer::prepareUniforms() {
-  GLint ModelUniform = ProgramManager.getResource("Program", LOCATION, GL_UNIFORM, "ModelMatrix");
-  GLint WorldUniform = ProgramManager.getResource("Program", LOCATION, GL_UNIFORM, "WorldMatrix");
-  GLint CameraUniform = ProgramManager.getResource("Program", LOCATION, GL_UNIFORM, "CameraPosition");
-  GLint NumLights = ProgramManager.getResource("Program", LOCATION, GL_UNIFORM, "NumLights");
+  GLint ModelUniform = ProgramManager.getResourceLocation("Program", GL_UNIFORM, "ModelMatrix");
+  GLint WorldUniform = ProgramManager.getResourceLocation("Program", GL_UNIFORM, "WorldMatrix");
+  GLint CameraUniform = ProgramManager.getResourceLocation("Program", GL_UNIFORM, "CameraPosition");
+  GLint NumLights = ProgramManager.getResourceLocation("Program", GL_UNIFORM, "NumLights");
   
   UniformManager.createUniform("ModelUniform", uniformmanager::UNIFORM_MATRIX, 4, ModelUniform);
   UniformManager.createUniform("WorldUniform", uniformmanager::UNIFORM_MATRIX, 4, WorldUniform);
   UniformManager.createUniform("CameraUniform", uniformmanager::UNIFORM, 3, CameraUniform);
   UniformManager.createUniform("NumLights", uniformmanager::UNIFORM, 1, NumLights);
 
-  UniformManager.setUniform("NumLights", 2);
+  UniformManager.setUniform("NumLights", 1);
 }
 
 #include <cmath>
 void renderer::draw() {
   glEnable(GL_MULTISAMPLE);
   glEnable(GL_DEPTH_TEST);
+  glEnable(GL_CULL_FACE);
+  glCullFace(GL_BACK);
+  glFrontFace(GL_CW);
+
   // glDisable(GL_CULL_FACE);
   glDepthFunc(GL_LESS);
   ProgramManager.installProgram("Program");
-  BufferManager.installVertexArrays("PointCoordinates", "Colour", "BlockLevel");
   glClearColor(0.0, 0.5, 1.0, 1.0);
   glm::mat4 Perspective = glm::perspective(glm::radians(135.0f), 1.0f, 0.1f, 100.0f);
-  glm::vec3 CameraPosition(2, 2, 2);
+  glm::vec3 CameraPosition(-1, 2, 1);
   // glm::mat4 Rotation = glm::rotate(glm::mat4(1), glm::mediump_float(DeltaTime), glm::vec3(1, 0, 0));
   // glm::vec4 Light = glm::vec4(2, 3, -1, 1);
   // glm::vec3 Camera = glm::vec3(Rotation * glm::vec4(CameraPosition, 1));
   glm::mat4 View = glm::lookAt(CameraPosition, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-  glm::mat4 Model = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f));
+  glm::mat4 Model = glm::scale(glm::mat4(1.0f), glm::vec3(0.03125f));
   glm::mat4 ModelMatrix = Perspective * View * Model;
   UniformManager.setUniform("ModelUniform", glm::value_ptr(ModelMatrix));
   UniformManager.setUniform("WorldUniform", glm::value_ptr(Model));
   UniformManager.setUniform("CameraUniform", glm::value_ptr(CameraPosition));
   // UniformManager.setUniform("LightPosition", glm::value_ptr(Light));
-  glBindFramebuffer(GL_FRAMEBUFFER, FrameBufferObject);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   
-  glDrawArrays(GL_POINTS, 0, points);
+  BufferManager.bindFrameBuffer("FrameBuffer", GL_FRAMEBUFFER);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glBindVertexArray(BlankVertexArray);
+  glDrawArrays(GL_TRIANGLES, 0, 36);
+
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-  glBindFramebuffer(GL_READ_FRAMEBUFFER, FrameBufferObject);
+  BufferManager.bindFrameBuffer("FrameBuffer", GL_READ_FRAMEBUFFER);
   glDrawBuffer(GL_BACK);
   glBlitFramebuffer(0, 0, WindowData.WindowWidth, WindowData.WindowHeight, 0, 0, WindowData.WindowWidth, WindowData.WindowHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-  
   swapBuffers();
 }
 
 void renderer::cleanUp() {
-  glDeleteRenderbuffers(1, &RenderBufferObject);
-  glDeleteTextures(1, &FrameBufferTexture);
-  glDeleteFramebuffers(1, &FrameBufferObject);
   BufferManager.cleanUp();
   ProgramManager.cleanUp();
 }

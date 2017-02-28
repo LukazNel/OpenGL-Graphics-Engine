@@ -8,49 +8,64 @@
 
 #include "external/include/glad.h"
 
-enum resourcetype {BUFFER, VERTEXARRAY};
-
 class buffermanager {
  public:
   buffermanager();
+
   template<typename ...args>
     void createBuffers(int Amount, const std::string BufferName, args... Arguments) {
       GLuint Buffers[Amount];
       //glGenBuffers(Amount, Buffers);
       glCreateBuffers(Amount, Buffers);
-      int Index = Amount;
-      createBufferHelper(Buffers, Index, BufferName, Arguments...);
+      createBufferHelper(Buffers, Amount, BufferName, Arguments...);
     }
+
   template<typename ...args>
-    void createVertexArrays(int Amount, const std::string VertexArrayName, args... Arguments) {
-      GLuint VertexArrays[Amount];
-      glGenVertexArrays(Amount, VertexArrays);
-      int Index = Amount;
-      createVertexArrayHelper(VertexArrays, Index, VertexArrayName, Arguments...);
+    void createRenderBuffers(int Amount, const std::string RenderBufferName, args... Arguments) {
+      GLuint RenderBuffers[Amount];
+      //glGenRenderBuffers(Amount, RenderBuffers);
+      glCreateRenderbuffers(Amount, RenderBuffers);
+      createRenderBufferHelper(RenderBuffers, Amount, RenderBufferName, Arguments...);
     }
+
+  template<typename ...args>
+    void createFrameBuffers(int Amount, const std::string FrameBufferName, args... Arguments) {
+      GLuint FrameBuffers[Amount];
+      //glGenFrameBuffers(Amount, FrameBuffers);
+      glCreateFramebuffers(Amount, FrameBuffers);
+      createFrameBufferHelper(FrameBuffers, Amount, FrameBufferName, Arguments...);
+    }
+
   void setBuffer(const std::string BufferName, const GLenum BufferType, int Size, const void* Data, GLenum Usage);
-  void setVertexArray(const std::string VertexArrayName, int AttributeIndex, int ComponentSize, const GLenum DataType, bool Normalised, int Stride, const void* Offset);
-  template<typename ...args>
-    void installVertexArrays(const std::string VertexArrayName, args... Arguments) {
-      installVertexArrays(VertexArrayName);
-      installVertexArrays(Arguments...);
-    }
-  void installVertexArrays(const std::string VertexArrayName) {
-      auto VertexArrayIterator = findResource(VertexArrayName, VERTEXARRAY);
-      if (VertexArrayIterator != VertexArrayArray.end())
-        glEnableVertexAttribArray(VertexArrayIterator->Location);
-  }
   void bindBuffer(const std::string BufferName);
   void bindBuffer(const std::string BufferName, GLuint BindingPoint);
+
+  void setRenderBuffer(const std::string RenderBufferName, int Samples, GLenum InternalFormat, int Width, int Height);
+  void setRenderBuffer(const std::string RenderBufferName, GLenum InternalFormat, int Width, int Height);
+  void bindRenderBuffer(const std::string RenderBufferName);
+
+  void setFrameBuffer(const std::string FrameBufferName, const std::string RenderBufferName);
+  void setFrameBuffer(const std::string FrameBufferName, GLenum Attachment, GLuint TextureHandle, int Level);
+  void setFrameBuffer(const std::string FrameBufferName, GLenum Attachment, GLuint TextureHandle, int Level, int Layer);
+  void bindFrameBuffer(const std::string FrameBufferName, GLenum FrameBufferType);
+
   std::string getLog();
   void cleanUp();
   ~buffermanager();
 
  private:
-  struct resource {
+  struct buffer {
     std::string Name;
     GLenum Type;
     int Location;
+    GLuint Handle;
+  };
+  struct renderbuffer {
+    std::string Name;
+    GLuint Handle;
+  };
+  struct framebuffer {
+    std::string Name;
     GLuint Handle;
   };
 
@@ -61,18 +76,31 @@ class buffermanager {
       createBufferHelper(Buffers, Index, Arguments...);
     }
   void createBufferHelper(GLuint* Buffers, int& Index, const std::string BufferName);
+
   template<typename ...args>
-    void createVertexArrayHelper(GLuint* VertexArrays, int& Index, const std::string VertexArrayName, args... Arguments) {
+    void createRenderBufferHelper(GLuint* RenderBuffers, int& Index, const std::string RenderBufferName, args... Arguments) {
       //Index--;
-      createVertexArrayHelper(VertexArrays, Index, VertexArrayName);
-      createVertexArrayHelper(VertexArrays, Index, Arguments...);
+      createRenderBufferHelper(RenderBuffers, Index, RenderBufferName);
+      createRenderBufferHelper(RenderBuffers, Index, Arguments...);
     }
-  void createVertexArrayHelper(GLuint* VertexArrays, int& Index, const std::string VertexArrayName);
+  void createRenderBufferHelper(GLuint* RenderBuffers, int& Index, const std::string RenderBufferName);
 
-  std::vector<resource>::iterator findResource(const std::string ResourceName, resourcetype ResourceType);
+  template<typename ...args>
+    void createFrameBufferHelper(GLuint* FrameBuffers, int& Index, const std::string FrameBufferName, args... Arguments) {
+      //Index--;
+      createFrameBufferHelper(FrameBuffers, Index, FrameBufferName);
+      createFrameBufferHelper(FrameBuffers, Index, Arguments...);
+    }
+  void createFrameBufferHelper(GLuint* FrameBuffers, int& Index, const std::string FrameBufferName);
 
-  std::vector<resource> BufferArray;
-  std::vector<resource> VertexArrayArray;
+  std::vector<buffer>::iterator findBuffer(const std::string BufferName);
+  std::vector<renderbuffer>::iterator findRenderBuffer(const std::string RenderBufferName);
+  std::vector<framebuffer>::iterator findFrameBuffer(const std::string FrameBufferName);
+
+  std::vector<buffer> BufferArray;
+  std::vector<renderbuffer> RenderBufferArray;
+  std::vector<framebuffer> FrameBufferArray;
+
   std::string LogString;
 };
 

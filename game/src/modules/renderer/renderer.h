@@ -49,6 +49,7 @@ class renderer : public module {
   buffermanager BufferManager;
   uniformmanager UniformManager;
 
+  static unsigned int BlankVertexArray;
   static renderer* ThisPointer;
 };
 

@@ -6,33 +6,33 @@ programmanager::programmanager(void(*QuitCallbackPointer)(void*)) {
 }
 
 void programmanager::createShader(const std::string ShaderName, const GLenum ShaderType) {
-  GLuint ShaderVar = glCreateShader(ShaderType);
+  GLuint ShaderHandle = glCreateShader(ShaderType);
   std::string ParsedShaderString = parseShader(ShaderName);
   const GLchar* ParsedShaderChar = ParsedShaderString.c_str();
   if (*ParsedShaderChar == ' ')
     return;
   int Length = ParsedShaderString.length()/sizeof(GLchar);
-  glShaderSource(ShaderVar, 1, &ParsedShaderChar, &Length);
-  glCompileShader(ShaderVar);
+  glShaderSource(ShaderHandle, 1, &ParsedShaderChar, &Length);
+  glCompileShader(ShaderHandle);
   LogString += ShaderName + ": ";
-  logShader(ShaderVar, ShaderType);
-  resource ResourceVar;
-  ResourceVar.Name = ShaderName;
-  ResourceVar.Handle = ShaderVar;
-  ShaderArray.push_back(ResourceVar);
+  logShader(ShaderHandle, ShaderType);
+  shader ShaderVar;
+  ShaderVar.Name = ShaderName;
+  ShaderVar.Handle = ShaderHandle;
+  ShaderArray.push_back(ShaderVar);
 }
 
 void programmanager::createProgram(const std::string ProgramName) {
-  resource ResourceVar;
-  ResourceVar.Name = ProgramName;
-  ResourceVar.Handle = glCreateProgram();
-  ProgramArray.push_back(ResourceVar);
+  program ProgramVar;
+  ProgramVar.Name = ProgramName;
+  ProgramVar.Handle = glCreateProgram();
+  ProgramArray.push_back(ProgramVar);
   LogString += "Program '" + ProgramName + "' successfully created.\n";
 }
 
 void programmanager::addShader(const std::string ProgramName, const std::string ShaderName) {
-  auto ProgramIterator = findResource(ProgramName, PROGRAM);
-  auto ShaderIterator = findResource(ShaderName, SHADER);
+  auto ProgramIterator = findProgram(ProgramName);
+  auto ShaderIterator = findShader(ShaderName);
   if (ProgramIterator != ProgramArray.end() && ShaderIterator != ShaderArray.end()) {
     glAttachShader(ProgramIterator->Handle, ShaderIterator->Handle);
     LogString += "Shader '" + ShaderName + "' added to program '" + ProgramName + "'.\n";
@@ -40,7 +40,7 @@ void programmanager::addShader(const std::string ProgramName, const std::string 
 }
 
 void programmanager::linkProgram(const std::string ProgramName) {
-  auto ProgramIterator = findResource(ProgramName, PROGRAM);
+  auto ProgramIterator = findProgram(ProgramName);
   if (ProgramIterator != ProgramArray.end()) {
     glLinkProgram(ProgramIterator->Handle);
     LogString += ProgramName + ": ";
@@ -49,51 +49,47 @@ void programmanager::linkProgram(const std::string ProgramName) {
 }
 
 void programmanager::installProgram(const std::string ProgramName) {
-  auto ProgramIterator = findResource(ProgramName, PROGRAM);
+  auto ProgramIterator = findProgram(ProgramName);
   if (ProgramIterator != ProgramArray.end()) {
     glUseProgram(ProgramIterator->Handle);
     LogString += "Program '" + ProgramName + "' bound to context.\n";
   }
 }
 
-GLint programmanager::getResource(const std::string ProgramName, locationindex LocationIndex, GLenum UniformType, const std::string UniformName) {
-  auto ProgramIterator = findResource(ProgramName, PROGRAM);
+GLint programmanager::getResourceIndex(const std::string ProgramName, GLenum ResourceType, const std::string ResourceName) {
+  auto ProgramIterator = findProgram(ProgramName);
   if (ProgramIterator != ProgramArray.end()) {
     GLint Index;
-    switch (LocationIndex) {
-      case INDEX: Index = glGetProgramResourceIndex(ProgramIterator->Handle, UniformType, UniformName.c_str());
-      break;
-      case LOCATION: Index = glGetProgramResourceLocation(ProgramIterator->Handle, UniformType, UniformName.c_str());
-      break;
-    }
+      Index = glGetProgramResourceIndex(ProgramIterator->Handle, ResourceType, ResourceName.c_str());
     if (Index == GL_INVALID_INDEX || Index == -1)
-      LogString += "Uniform '" + UniformName + "' not found in program '" + ProgramName + "'.\n";
-    else LogString += "Uniform '" + UniformName + "' found in program '" + ProgramName + "'.\n";
+      LogString += "Uniform '" + ResourceName + "' not found in program '" + ProgramName + "' with index " + std::to_string(Index) + ".\n";
+    else LogString += "Uniform '" + ResourceName + "' found in program '" + ProgramName + "' with index " + std::to_string(Index) + ".\n";
     return Index;
   }
 }
 
-void programmanager::setUniformBinding(const std::string ProgramName, locationindex LocationIndex, GLenum UniformType, const std::string UniformName, int BindingPoint) {
-  auto ProgramIterator = findResource(ProgramName, PROGRAM);
+GLint programmanager::getResourceLocation(const std::string ProgramName, GLenum ResourceType, const std::string ResourceName) {
+  auto ProgramIterator = findProgram(ProgramName);
   if (ProgramIterator != ProgramArray.end()) {
-    switch (LocationIndex) {
-      case INDEX: glUniformBlockBinding(ProgramIterator->Handle, glGetProgramResourceIndex(ProgramIterator->Handle, UniformType, UniformName.c_str()), BindingPoint);
-      break;
-      case LOCATION: glUniformBlockBinding(ProgramIterator->Handle, glGetProgramResourceLocation(ProgramIterator->Handle, UniformType, UniformName.c_str()), BindingPoint);
-      break;
-    }
-    LogString += "Uniform block index " + UniformName + " in program '" + ProgramName + "' bound to binding point " + std::to_string(BindingPoint) + ".\n";
+    GLint Location = glGetProgramResourceLocation(ProgramIterator->Handle, ResourceType, ResourceName.c_str());
+    if (Location == GL_INVALID_INDEX || Location == -1)
+      LogString += "Resource '" + ResourceName + "' not found in program '" + ProgramName + "' with location " + std::to_string(Location) + ".\n";
+    else LogString += "Resource '" + ResourceName + "' found in program '" + ProgramName + "' with location " + std::to_string(Location) + ".\n";
+    return Location;
   }
 }
 
-/*void programmanager::setUniformBinding(const std::string ProgramName, GLuint UniformIndex, GLuint BindingPoint) {
-  bool ProgramFound;
-  auto ProgramIterator = findResource(ProgramName, PROGRAM);
+void programmanager::setBinding(const std::string ProgramName, GLenum ResourceType, const std::string ResourceName, int BindingPoint) {
+  auto ProgramIterator = findProgram(ProgramName);
   if (ProgramIterator != ProgramArray.end()) {
-    glUniformBlockBinding(ProgramIterator->Handle, UniformIndex, BindingPoint);
-    LogString += "Uniform block index " + std::to_string(UniformIndex) + " in program '" + ProgramName + "' bound to binding point " + std::to_string(BindingPoint) + ".\n";
+    if (ResourceType == GL_UNIFORM || ResourceType == GL_UNIFORM_BLOCK)
+      glUniformBlockBinding(ProgramIterator->Handle, glGetProgramResourceIndex(ProgramIterator->Handle, ResourceType, ResourceName.c_str()), BindingPoint);
+    else if (ResourceType == GL_SHADER_STORAGE_BLOCK)
+      glShaderStorageBlockBinding(ProgramIterator->Handle, glGetProgramResourceIndex(ProgramIterator->Handle, ResourceType, ResourceName.c_str()), BindingPoint);
+    else LogString += "Warning: Cannot bind resource '" + ResourceName + "': incompatible type.";
+      LogString += "Resource " + ResourceName + " in program '" + ProgramName + "' bound to binding point " + std::to_string(BindingPoint) + ".\n";
   }
-}*/
+}
 
 std::string programmanager::getLog() {
   std::string Log = LogString;
@@ -113,22 +109,20 @@ void programmanager::cleanUp() {
 programmanager::~programmanager() {
 }
 
-auto programmanager::findResource(const std::string ResourceName, resourcetype ResourceType) -> std::vector<resource>::iterator {
-  std::vector<resource>* ResourceArray;
-  switch (ResourceType) {
-    case SHADER: ResourceArray = &ShaderArray;
-      break;
-    case PROGRAM: ResourceArray = &ProgramArray;
-      break;
-  }
-  auto ResourceIterator = std::find_if(ResourceArray->begin(), ResourceArray->end(), 
-      [&] (const resource& ResourceVar) {return ResourceVar.Name == ResourceName;});
-  if (ResourceIterator != ResourceArray->end()) {
-    return ResourceIterator;
-  } else {
-    LogString = "Warning: Resource '" + ResourceName + "' not found.\n";
-    return ResourceIterator;
-  }
+auto programmanager::findProgram(const std::string ProgramName) -> std::vector<program>::iterator {
+  auto ProgramIterator = std::find_if(ProgramArray.begin(), ProgramArray.end(), 
+      [&] (const program& ProgramVar) {return ProgramVar.Name == ProgramName;});
+  if (ProgramIterator == ProgramArray.end())
+    LogString = "Warning: Program '" + ProgramName + "' not found.\n";
+  return ProgramIterator;
+}
+
+auto programmanager::findShader(const std::string ShaderName) -> std::vector<shader>::iterator {
+  auto ShaderIterator = std::find_if(ShaderArray.begin(), ShaderArray.end(), 
+      [&] (const shader& ShaderVar) {return ShaderVar.Name == ShaderName;});
+  if (ShaderIterator == ShaderArray.end())
+    LogString = "Warning: Shader '" + ShaderName + "' not found.\n";
+  return ShaderIterator;
 }
 
 std::string programmanager::parseShader(const std::string ShaderName) {
@@ -167,6 +161,6 @@ void programmanager::logProgram(const GLuint& ProgramHandle) {
     GLchar LogChar[LogSize];
     glGetProgramInfoLog(ProgramHandle, LogSize, nullptr, LogChar);
     LogString += '\n' + LogChar + '\n';
-    Quit(nullptr);
+    //Quit(nullptr);
   }
 }

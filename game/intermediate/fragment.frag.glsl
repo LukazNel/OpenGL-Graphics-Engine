@@ -1,7 +1,5 @@
-#version 420 core
+#version 450 core
 
-uniform mat4 WorldMatrix;
-uniform vec3 CameraPosition;
 uniform int NumLights;
 
 #define MAX_LIGHTS 10
@@ -16,14 +14,14 @@ layout(std140) uniform LightUniform {
   light LightArray[MAX_LIGHTS];
 };
 
-in vec4 VertexPosition;
-in vec3 FragmentColour;
-in vec3 VertexNormal;
-flat in int FragmentBlockLevel;
+in vec3 Position;
+in vec3 Colour;
+in vec3 Normal;
+flat in uint Level;
 
 out vec4 FinalColour;
 
-vec3 applyLight(light Light, vec3 FragmentNormal, vec3 FragmentPosition, vec3 SurfaceToCamera) {
+vec3 applyLight(light Light, vec3 Normal, vec3 Position, vec3 SurfaceToCamera) {
     vec3 SurfaceToLight;
     float Attenuation = 1.0;
     if(Light.Position.w == 0.0) {
@@ -32,22 +30,22 @@ vec3 applyLight(light Light, vec3 FragmentNormal, vec3 FragmentPosition, vec3 Su
         Attenuation = 1.0; //no attenuation for directional lights
     } else {
         //point light
-        SurfaceToLight = normalize(Light.Position.xyz - FragmentPosition);
-        float DistanceToLight = length(Light.Position.xyz - FragmentPosition);
+        SurfaceToLight = normalize(Light.Position.xyz - Position);
+        float DistanceToLight = length(Light.Position.xyz - Position);
         Attenuation = 1.0 / (1.0 + Light.Attenuation * pow(DistanceToLight, 2));
     }
 
     //ambient
-    vec3 Ambient = Light.AmbientCoefficient * FragmentColour.rgb * Light.Intensity;
+    vec3 Ambient = Light.AmbientCoefficient * Colour.rgb * Light.Intensity;
 
     //diffuse
-    float DiffuseCoefficient = max(0.0, dot(FragmentNormal, SurfaceToLight));
-    vec3 Diffuse = DiffuseCoefficient * FragmentColour.rgb * Light.Intensity;
+    float DiffuseCoefficient = max(0.0, dot(Normal, SurfaceToLight));
+    vec3 Diffuse = DiffuseCoefficient * Colour.rgb * Light.Intensity;
     
     //specular
     float SpecularCoefficient = 0.0;
-    if(DiffuseCoefficient > 0.0 && FragmentBlockLevel == 2)
-        SpecularCoefficient = pow(max(0.0, dot(SurfaceToCamera, reflect(-SurfaceToLight, FragmentNormal))), 2);
+    if(DiffuseCoefficient > 0.0 && Level == 2)
+        SpecularCoefficient = pow(max(0.0, dot(SurfaceToCamera, reflect(-SurfaceToLight, Normal))), 2);
     vec3 Specular = SpecularCoefficient * vec3(1.0, 1.0, 1.0) * Light.Intensity;
 
     //linear color (color before gamma correction)
@@ -55,24 +53,23 @@ vec3 applyLight(light Light, vec3 FragmentNormal, vec3 FragmentPosition, vec3 Su
 }
 
 void main() {
-    vec3 FragmentNormal = normalize(transpose(inverse(mat3(WorldMatrix))) * VertexNormal);
-    vec3 FragmentPosition = vec3(WorldMatrix * VertexPosition);
-    vec3 SurfaceToCamera = normalize(CameraPosition - FragmentPosition);
-
+    vec3 SurfaceToCamera = normalize(Position);
+    //vec3 FragmentNormal = normalize(transpose(inverse(mat3(WSMatrix))) * VertexNormal);
+    //vec3 FragmentPosition = vec3(WSMatrix * vec4(VertexPosition, 0));
     //combine color from all the lights
     //light Current = LightArray[0];
     //Current.Position = Light.Position;
     vec3 LinearColour = vec3(0);
-    if (FragmentBlockLevel != 3)
+    if (Level != 3)
       for(int i = 0; i < NumLights; ++i) {
-        LinearColour += applyLight(LightArray[0], FragmentNormal, FragmentPosition, SurfaceToCamera);
+        LinearColour += applyLight(LightArray[i], Normal, Position, SurfaceToCamera);
       }
-    else LinearColour = FragmentColour.xyz * 2;
+        //LinearColour += applyLight(LightArray[i], VertexNormal, FragmentPosition, SurfaceToCamera);
 
     //final color (after gamma correction)
     vec3 Gamma = vec3(1.0/2.2);
-    FinalColour = vec4(pow(LinearColour, Gamma), 0.5);
+    FinalColour = vec4(pow(LinearColour, Gamma), 1.0);
     //FinalColour = vec4(LinearColour, 1);
     
-    //FinalColour = vec4(1); //VertexColour;
+    //FinalColour = vec4(Colour, 1);
 }
