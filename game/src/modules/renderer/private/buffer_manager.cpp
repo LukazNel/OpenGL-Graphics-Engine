@@ -30,6 +30,14 @@ void buffermanager::bindBuffer(const std::string BufferName, GLuint BindingPoint
   }
 }
 
+void buffermanager::getBuffer(const std::string BufferName, int Offset, int Size, void* Data) {
+  auto BufferIterator = findBuffer(BufferName);
+  if (BufferIterator != BufferArray.end()) {
+    glGetNamedBufferSubData(BufferIterator->Handle, Offset, Size, Data);
+    LogString += "Buffer '" + BufferName + "' read.\n";
+  }
+}
+
 void buffermanager::setRenderBuffer(const std::string RenderBufferName, int Samples, GLenum InternalFormat, int Width, int Height) {
   auto RenderBufferIterator = findRenderBuffer(RenderBufferName);
   if (RenderBufferIterator != RenderBufferArray.end()) {

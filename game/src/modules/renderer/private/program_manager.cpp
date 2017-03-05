@@ -82,12 +82,14 @@ GLint programmanager::getResourceLocation(const std::string ProgramName, GLenum 
 void programmanager::setBinding(const std::string ProgramName, GLenum ResourceType, const std::string ResourceName, int BindingPoint) {
   auto ProgramIterator = findProgram(ProgramName);
   if (ProgramIterator != ProgramArray.end()) {
+    glUseProgram(ProgramIterator->Handle);
     if (ResourceType == GL_UNIFORM || ResourceType == GL_UNIFORM_BLOCK)
       glUniformBlockBinding(ProgramIterator->Handle, glGetProgramResourceIndex(ProgramIterator->Handle, ResourceType, ResourceName.c_str()), BindingPoint);
     else if (ResourceType == GL_SHADER_STORAGE_BLOCK)
       glShaderStorageBlockBinding(ProgramIterator->Handle, glGetProgramResourceIndex(ProgramIterator->Handle, ResourceType, ResourceName.c_str()), BindingPoint);
     else LogString += "Warning: Cannot bind resource '" + ResourceName + "': incompatible type.";
       LogString += "Resource " + ResourceName + " in program '" + ProgramName + "' bound to binding point " + std::to_string(BindingPoint) + ".\n";
+      glUseProgram(0);
   }
 }
 

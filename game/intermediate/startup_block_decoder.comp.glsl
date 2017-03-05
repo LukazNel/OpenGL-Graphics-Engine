@@ -14,15 +14,15 @@ struct block {
 };
 
 layout(std140) uniform InputBuffer {
-  u64vec2 InputArray[262144]; // (8x8x8)(8x8x8)
-};
+  u64vec2 InputArray[4]; // (8x8x8)(8x8x8)
+} BufferIn;
 
 layout(std430) buffer StorageBuffer {
-  block BlockArray[1000000]; // (60MB)
-};
+  block BlockArray[]; // (60MB)
+} BufferOut;
 
 layout(std140) uniform ColourUniform {
-  vec3 ColourArray[1022]; // Change to vec3 later!
+  vec3 ColourArray[1022];
 };
 
 // method to seperate bits from a given integer 3 positions apart
@@ -49,8 +49,8 @@ uint64_t mortonEncode_magicbits(unsigned int x, unsigned int y, unsigned int z) 
 
 void main(void) {
   block DecodedBlock;
-  uint64_t Coordinates = InputArray[gl_GlobalInvocationID].y;
-  uint64_t Info = InputArray[gl_GlobalInvocationID].x;
+  uint64_t Coordinates = BufferIn.InputArray[gl_LocalInvocationID.x].y;
+  uint64_t Info = BufferIn.InputArray[gl_LocalInvocationID.x].x;
 
   if ((bool)(Coordinates & 0x1)) {
     Coordinates >>= 1;
@@ -114,6 +114,6 @@ void main(void) {
     if ((bool)(Info & 0x1))
       DecodedBlock.Offset.z *= -1;
 
-    BlockInfo[gl_GlobalInvocationID] = DecodedBlock;
+    BufferOut.BlockArray[gl_LocalInvocationID.x] = DecodedBlock;
   }
 }

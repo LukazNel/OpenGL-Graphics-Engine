@@ -1,20 +1,21 @@
 #version 450 core
 
 uniform int NumLights;
+uniform vec3 CameraPosition;
 
 #define MAX_LIGHTS 10
-uniform struct light {
+struct light {
    vec4 Position;
    vec3 Intensity; //a.k.a the color of the light
    float Attenuation;
    float AmbientCoefficient;
-} Light;
+};
 
 layout(std140) uniform LightUniform {
   light LightArray[MAX_LIGHTS];
 };
 
-in vec3 Position;
+in vec4 Position;
 in vec3 Colour;
 in vec3 Normal;
 flat in uint Level;
@@ -53,23 +54,19 @@ vec3 applyLight(light Light, vec3 Normal, vec3 Position, vec3 SurfaceToCamera) {
 }
 
 void main() {
-    vec3 SurfaceToCamera = normalize(Position);
-    //vec3 FragmentNormal = normalize(transpose(inverse(mat3(WSMatrix))) * VertexNormal);
-    //vec3 FragmentPosition = vec3(WSMatrix * vec4(VertexPosition, 0));
+    vec3 SurfaceToCamera = normalize(CameraPosition - vec3(Position));
+
     //combine color from all the lights
-    //light Current = LightArray[0];
-    //Current.Position = Light.Position;
     vec3 LinearColour = vec3(0);
     if (Level != 3)
       for(int i = 0; i < NumLights; ++i) {
-        LinearColour += applyLight(LightArray[i], Normal, Position, SurfaceToCamera);
+        LinearColour += applyLight(LightArray[i], Normal, vec3(Position), SurfaceToCamera);
       }
-        //LinearColour += applyLight(LightArray[i], VertexNormal, FragmentPosition, SurfaceToCamera);
+    else LinearColour = Colour;
 
     //final color (after gamma correction)
     vec3 Gamma = vec3(1.0/2.2);
     FinalColour = vec4(pow(LinearColour, Gamma), 1.0);
-    //FinalColour = vec4(LinearColour, 1);
     
     //FinalColour = vec4(Colour, 1);
 }
