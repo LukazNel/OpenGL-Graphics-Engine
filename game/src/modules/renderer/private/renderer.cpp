@@ -20,13 +20,13 @@ struct lightstruct {
 };
 
 lightstruct LightArray[] = {
-  {{1.0, 2.0, 1.0, 1.0}, {0.5, 1.0, 1.0}, 0.2, 0.005},
-  {{-2.0, 2.0, 1.0, 0.0}, {0.0, 1.0, 1.0}, 0.2, 0.005},
-  {{0.0, -13.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, 0.2, 0.005},
-  {{-2.0, 3.0, 1.0, 0.0}, {0.5, 0.5, 0.5}, 0.2, 0.005}
+  {{1.0, 0.0, 1.0, 1.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
+  {{-1.0, 1.0, 1.0, 1.0}, {0.0, 1.0, 1.0}, 0.2, 0.005},
+  {{0.0, -13.0, 0.0, 1.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
+  {{-2.0, 3.0, 1.0, 0.0}, {1.0, 1.0, 1.0}, 0.2, 0.005}
 };
 
-uint64_t InputArray[][2] {{65376, 3}, {21568, 1}, {19952, 4194305}, {56448, 8388609}};
+uint64_t InputArray[][2] {{5771136619255974480, 17592186044417}, {129354334032, 8796093022209}, {65376, 3}, {21568, 1}, {19952, 4194305}, {56448, 8388609}};
 //      -- --
 
 struct block {
@@ -99,10 +99,10 @@ void renderer::prepare() {
 void renderer::preparePrograms() {
   ProgramManager.createShader("intermediate/vertex.vert.glsl", GL_VERTEX_SHADER);
   ProgramManager.createShader("intermediate/fragment.frag.glsl", GL_FRAGMENT_SHADER);
-  ProgramManager.createShader("intermediate/startup_block_decoder.comp.glsl", GL_COMPUTE_SHADER);
+  ProgramManager.createShader("intermediate/compute.comp.glsl", GL_COMPUTE_SHADER);
 
   ProgramManager.createProgram("ComputeProgram");
-  ProgramManager.addShader("ComputeProgram", "intermediate/startup_block_decoder.comp.glsl");
+  ProgramManager.addShader("ComputeProgram", "intermediate/compute.comp.glsl");
   ProgramManager.linkProgram("ComputeProgram");
 
   ProgramManager.createProgram("Program");
@@ -175,7 +175,7 @@ void renderer::draw() {
   glDepthFunc(GL_LEQUAL); //glDepthFunc(GL_LESS);
   glClearColor(0.0, 0.5, 1.0, 1.0);
 
-  glm::vec3 CameraPosition(1, 2, 1);
+  glm::vec3 CameraPosition(1, 1, 1);
   glm::mat4 PerspectiveMatrix = glm::perspective(glm::radians(45.0f), (float)(WindowData.WindowWidth / WindowData.WindowHeight), 0.1f, 100.0f);
   glm::mat4 CameraMatrix = glm::lookAt(CameraPosition, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
   glm::mat4 WSMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.125)); // 0.03125

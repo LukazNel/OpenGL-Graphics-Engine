@@ -15,9 +15,9 @@ layout(std140) uniform LightUniform {
   light LightArray[MAX_LIGHTS];
 };
 
-in vec4 Position;
+in vec3 WSPosition;
 in vec3 Colour;
-in vec3 Normal;
+in vec3 WSNormal;
 flat in uint Level;
 
 out vec4 FinalColour;
@@ -54,13 +54,13 @@ vec3 applyLight(light Light, vec3 Normal, vec3 Position, vec3 SurfaceToCamera) {
 }
 
 void main() {
-    vec3 SurfaceToCamera = normalize(CameraPosition - vec3(Position));
+    vec3 SurfaceToCamera = normalize(CameraPosition - WSPosition);
 
     //combine color from all the lights
     vec3 LinearColour = vec3(0);
     if (Level != 3)
       for(int i = 0; i < NumLights; ++i) {
-        LinearColour += applyLight(LightArray[i], Normal, vec3(Position), SurfaceToCamera);
+        LinearColour += applyLight(LightArray[i], WSNormal, WSPosition, SurfaceToCamera);
       }
     else LinearColour = Colour;
 

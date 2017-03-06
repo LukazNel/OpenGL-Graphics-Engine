@@ -9,8 +9,8 @@ struct block {
   ivec3 Coordinates;
   vec3 Colour;
   uint Level;
-  ivec3 Rotation;
-  ivec3 Offset;
+  vec4 Quaternion;
+  vec3 Offset;
 };
 
 layout(std140) uniform InputBuffer {
@@ -47,6 +47,25 @@ uint64_t mortonEncode_magicbits(unsigned int x, unsigned int y, unsigned int z) 
     return answer;
 }
 
+vec4 quaternion(vec3 Axis, float Angle) {
+  vec4 Quaternion;
+  float HalfAngle = (Angle * 0.5) * 3.14159 / 180;
+  Quaternion.x = Axis.x * sin(HalfAngle);
+  Quaternion.y = Axis.y * sin(HalfAngle);
+  Quaternion.z = Axis.z * sin(HalfAngle);
+  Quaternion.w = cos(HalfAngle);
+  return Quaternion;
+}
+
+vec4 qMultiply(vec4 Q1, vec4 Q2) {
+  vec4 Quaternion;
+  Quaternion.x = (Q1.w * Q2.x) + (Q1.x * Q2.w) + (Q1.y * Q2.z) - (Q1.z * Q2.y);
+  Quaternion.y = (Q1.w * Q2.y) - (Q1.x * Q2.z) + (Q1.y * Q2.w) + (Q1.z * Q2.x);
+  Quaternion.z = (Q1.w * Q2.z) + (Q1.x * Q2.y) - (Q1.y * Q2.x) + (Q1.z * Q2.w);
+  Quaternion.w = (Q1.w * Q2.w) - (Q1.x * Q2.x) - (Q1.y * Q2.y) - (Q1.z * Q2.z);
+  return Quaternion;
+}
+
 void main(void) {
   block DecodedBlock;
   uint64_t Coordinates = BufferIn.InputArray[gl_LocalInvocationID.x].y;
@@ -79,37 +98,45 @@ void main(void) {
     DecodedBlock.Level = (uint)(Info & 0x3);
     Info >>= 2;
 
-    DecodedBlock.Rotation.x = (int)(Info & 0x7F);
+    vec3 Rotation;
+    Rotation.x = (int)(Info & 0x7F);
     Info >>= 7;
     if ((bool)(Info & 0x1))
-      DecodedBlock.Rotation.x *= -1;
+      Rotation.x *= -1;
     Info >>= 1;
 
-    DecodedBlock.Rotation.y = (int)(Info & 0x7F);
+    Rotation.y = (int)(Info & 0x7F);
     Info >>= 7;
     if ((bool)(Info & 0x1))
-      DecodedBlock.Rotation.y *= -1;
+      Rotation.y *= -1;
     Info >>= 1;
 
-    DecodedBlock.Rotation.z = (int)(Info & 0x7F);
+    Rotation.z = (int)(Info & 0x7F);
     Info >>= 7;
     if ((bool)(Info & 0x1))
-      DecodedBlock.Rotation.z *= -1;
+      Rotation.z *= -1;
     Info >>= 1;
 
-    DecodedBlock.Offset.x = (int)(Info & 0x7F);
+    vec4 QuaternionX = quaternion(vec3(1, 0, 0), Rotation.x);
+    vec4 QuaternionY = quaternion(vec3(0, 1, 0), Rotation.y);
+    vec4 QuaternionZ = quaternion(vec3(0, 0, 1), Rotation.z);
+
+    vec4 Quaternion = qMultiply(QuaternionX, qMultiply(QuaternionY, QuaternionZ));
+    DecodedBlock.Quaternion = Quaternion;
+
+    DecodedBlock.Offset.x = (float)(Info & 0x7F) / 100;
     Info >>= 7;
     if ((bool)(Info & 0x1))
       DecodedBlock.Offset.x *= -1;
     Info >>= 1;
 
-    DecodedBlock.Offset.y = (int)(Info & 0x7F);
+    DecodedBlock.Offset.y = (float)(Info & 0x7F) / 100;
     Info >>= 7;
     if ((bool)(Info & 0x1))
       DecodedBlock.Offset.y *= -1;
     Info >>= 1;
 
-    DecodedBlock.Offset.z = (int)(Info & 0x7F);
+    DecodedBlock.Offset.z = (float)(Info & 0x7F) / 100;
     Info >>= 7;
     if ((bool)(Info & 0x1))
       DecodedBlock.Offset.z *= -1;
