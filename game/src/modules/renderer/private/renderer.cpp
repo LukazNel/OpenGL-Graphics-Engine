@@ -20,7 +20,7 @@ struct lightstruct {
 };
 
 lightstruct LightArray[] = {
-  {{1.0, 0.0, 1.0, 1.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
+  {{1.0, 1.0, 1.0, 1.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
   {{-1.0, 1.0, 1.0, 1.0}, {0.0, 1.0, 1.0}, 0.2, 0.005},
   {{0.0, -13.0, 0.0, 1.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
   {{-2.0, 3.0, 1.0, 0.0}, {1.0, 1.0, 1.0}, 0.2, 0.005}
@@ -77,6 +77,7 @@ void renderer::prepare() {
   preparePrograms();
   prepareBuffers();
   prepareUniforms();
+  prepareState();
  
   ProgramManager.installProgram("ComputeProgram");
   glDispatchCompute(1, 1, 1); // Max 8 x 8 x 8
@@ -151,22 +152,22 @@ void renderer::prepareBuffers() {
 
 void renderer::prepareUniforms() {
   GLint CSMatrixUniform = ProgramManager.getResourceLocation("Program", GL_UNIFORM, "CSMatrix");
-  UniformManager.createUniform("CSMatrixUniform", uniformmanager::UNIFORM_MATRIX, 4, CSMatrixUniform);
+  UniformManager.createUniformMatrix("CSMatrixUniform", 4, CSMatrixUniform);
 
   GLint WSMatrixUniform = ProgramManager.getResourceLocation("Program", GL_UNIFORM, "WSMatrix");
-  UniformManager.createUniform("WSMatrixUniform", uniformmanager::UNIFORM_MATRIX, 4, WSMatrixUniform);
+  UniformManager.createUniformMatrix("WSMatrixUniform", 4, WSMatrixUniform);
   
   GLint NumLights = ProgramManager.getResourceLocation("Program", GL_UNIFORM, "NumLights");
-  UniformManager.createUniform("NumLights", uniformmanager::UNIFORM, 1, NumLights);
+  UniformManager.createUniform("NumLights", 1, NumLights);
 
   GLint CameraPosition = ProgramManager.getResourceLocation("Program", GL_UNIFORM, "CameraPosition");
-  UniformManager.createUniform("CameraPosition", uniformmanager::UNIFORM, 3, CameraPosition);
+  UniformManager.createUniform("CameraPosition", 3, CameraPosition);
 
   ProgramManager.installProgram("Program");
   UniformManager.setUniform("NumLights", 2);
 }
 
-void renderer::draw() {
+void renderer::prepareState() {
   glEnable(GL_MULTISAMPLE);
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_CULL_FACE);
@@ -174,11 +175,13 @@ void renderer::draw() {
   glFrontFace(GL_CW);
   glDepthFunc(GL_LEQUAL); //glDepthFunc(GL_LESS);
   glClearColor(0.0, 0.5, 1.0, 1.0);
+}
 
+void renderer::draw() {
   glm::vec3 CameraPosition(1, 1, 1);
   glm::mat4 PerspectiveMatrix = glm::perspective(glm::radians(45.0f), (float)(WindowData.WindowWidth / WindowData.WindowHeight), 0.1f, 100.0f);
   glm::mat4 CameraMatrix = glm::lookAt(CameraPosition, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-  glm::mat4 WSMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.125)); // 0.03125
+  glm::mat4 WSMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.03125)); // 0.03125
   glm::mat4 CSMatrix = PerspectiveMatrix * CameraMatrix;
   
   ProgramManager.installProgram("Program");
@@ -188,7 +191,6 @@ void renderer::draw() {
   
   BufferManager.bindFrameBuffer("FrameBuffer", GL_FRAMEBUFFER);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  glBindVertexArray(BlankVertexArray);
   glDrawArrays(GL_TRIANGLES, 0, 144);
 
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);

@@ -38,6 +38,7 @@ class renderer : public module {
   void preparePrograms();
   void prepareBuffers();
   void prepareUniforms();
+  void prepareState();
 
   void swapBuffers();
   friend void quitCallback(void* Pointer);
