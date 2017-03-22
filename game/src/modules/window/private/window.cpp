@@ -59,10 +59,11 @@ void window::begin() {
 void window::refresh() {
   frameCount();
   while(SDL_PollEvent(&Event)) {
-    if (Event.type == SDL_QUIT)
-      quit();
-    if (Event.type == SDL_KEYDOWN)
-      quit();
+    request("Input", "updateEvents", Event);
+/*if (Event.type == SDL_QUIT)
+  quit();
+if (Event.type == SDL_KEYDOWN)
+  quit();*/
   }
 }
 

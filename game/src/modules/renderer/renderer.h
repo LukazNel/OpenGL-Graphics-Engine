@@ -2,14 +2,12 @@
 #define _GAME_ENGINE_SRC_MODULE_RENDERER_H_
 
 #include <memory>
+#include <atomic>
 
 #include "modules/module.h"
 #include "modules/window/window.h"
 
 #include "external/include/glad.h"
-#include "external/include/glm/glm.hpp"
-#include "external/include/glm/gtc/type_ptr.hpp"
-#include "external/include/glm/gtc/matrix_transform.hpp"
 
 #include "classes/colourArray.h"
 #include "classes/program_manager.h"
@@ -35,6 +33,13 @@ class renderer : public module {
     std::atomic<bool> DataIsReady;
   };
 
+  struct camerastruct {
+    float CSMatrix[16];
+    float WSMatrix[16];
+    float Position[3];
+    std::atomic<bool> DataIsReady;
+  };
+
   void preparePrograms();
   void prepareBuffers();
   void prepareUniforms();
@@ -46,6 +51,8 @@ class renderer : public module {
   void quit();
 
   windowstruct WindowData;
+  camerastruct CurrentCameraData;
+  camerastruct NewCameraData;
   programmanager ProgramManager;
   buffermanager BufferManager;
   uniformmanager UniformManager;

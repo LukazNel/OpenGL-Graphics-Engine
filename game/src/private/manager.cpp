@@ -52,6 +52,7 @@ void manager::managerLoop() {
     } else if (EventQueue.empty()) {
         request("Renderer", "draw", true);
         request("Window", "refresh", false);
+        request("Client", "update", false); //It has to happen at the beginning of frame, to update everything in time.
         continue;
     }
     if (EventIterator != ModuleArray.end()) {

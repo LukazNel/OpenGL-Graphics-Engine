@@ -50,7 +50,7 @@ void APIENTRY openglCallbackFunction(GLenum source, GLenum type, GLuint id, GLen
 
   //renderer::ThisPointer->request("Logger", "log", renderer::ThisPointer->getName(), std::string(message)); 
   if (severity == GL_DEBUG_SEVERITY_HIGH) {
-    std::string Log = "Aborting...\n";
+    std::string Log = message;
     renderer::ThisPointer->request("Logger", "log", renderer::ThisPointer->getName(), Log);
     renderer::ThisPointer->request("Window", "quit");
   }
@@ -68,9 +68,11 @@ void renderer::start() {
   addFunction("draw", &renderer::draw);
   addFunction("cleanUp", &renderer::cleanUp);
   request("Window", "getWindowData", &WindowData.ObjectPointer, &WindowData.SwapBuffers, &WindowData.WindowWidth, &WindowData.WindowHeight, &WindowData.DataIsReady);
+  request("Client", "setCameraPointers", (float*)NewCameraData.CSMatrix, (float*)NewCameraData.WSMatrix, (float*)NewCameraData.Position, &NewCameraData.DataIsReady);
 }
 
 void renderer::prepare() {
+  // NOTE Acessing Windowdata may be unsafe if data is changed after atomic is true.
   while (!WindowData.DataIsReady.load())
     continue;
   glViewport(0, 0, WindowData.WindowWidth, WindowData.WindowHeight);
@@ -178,16 +180,17 @@ void renderer::prepareState() {
 }
 
 void renderer::draw() {
-  glm::vec3 CameraPosition(1, 1, 1);
-  glm::mat4 PerspectiveMatrix = glm::perspective(glm::radians(45.0f), (float)(WindowData.WindowWidth / WindowData.WindowHeight), 0.1f, 100.0f);
-  glm::mat4 CameraMatrix = glm::lookAt(CameraPosition, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-  glm::mat4 WSMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.03125)); // 0.03125
-  glm::mat4 CSMatrix = PerspectiveMatrix * CameraMatrix;
-  
+  if (NewCameraData.DataIsReady.load()) {
+    std::copy(NewCameraData.CSMatrix, NewCameraData.CSMatrix + 16, CurrentCameraData.CSMatrix);
+    std::copy(NewCameraData.WSMatrix, NewCameraData.WSMatrix + 16, CurrentCameraData.WSMatrix);
+    std::copy(NewCameraData.Position, NewCameraData.Position + 3, CurrentCameraData.Position);
+    NewCameraData.DataIsReady.store(false); // Handshaking: State says true and Renderer changes data, Renderer says false and State changed data.
+  }
+
   ProgramManager.installProgram("Program");
-  UniformManager.setUniform("CSMatrixUniform", glm::value_ptr(CSMatrix));
-  UniformManager.setUniform("WSMatrixUniform", glm::value_ptr(WSMatrix));
-  UniformManager.setUniform("CameraPosition", glm::value_ptr(CameraPosition));
+  UniformManager.setUniform("CSMatrixUniform", (GLfloat*)(CurrentCameraData.CSMatrix));
+  UniformManager.setUniform("WSMatrixUniform", (GLfloat*)(CurrentCameraData.WSMatrix));
+  UniformManager.setUniform("CameraPosition", (GLfloat*)(CurrentCameraData.Position));
   
   BufferManager.bindFrameBuffer("FrameBuffer", GL_FRAMEBUFFER);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

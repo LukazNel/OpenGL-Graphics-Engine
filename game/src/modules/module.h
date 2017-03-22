@@ -48,8 +48,11 @@ class module {
     start();
   }
   bool isAvailable() {
-    //std::lock_guard<std::mutex> Lock(Mutex);
-    return Available.compare_exchange_strong(True, False);
+    //Available.compare_exchange_strong(True, False); // Not working
+    if (Available.load() == true) {
+      Available.store(false);
+      return true;
+    } else return false;
   }
   template<typename... args>
     void call(std::string FunctionName, std::tuple<args...> Arguments) {
@@ -62,7 +65,7 @@ class module {
         std::string Log = "Function '" + FunctionName + "' not found.";
         request("Logger", "log", *ModuleName, Log);
       }
-      Available.store(true);
+      setAvailable();
       Condition.notify_one();
     }
   std::unique_ptr<eventbase> getRequest() {

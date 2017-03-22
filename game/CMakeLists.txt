@@ -12,6 +12,6 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src")
 add_definitions(-std=c++14 -O0)
 
 add_executable(GameUnknown ${PROJECT_SRCS})
-target_link_libraries(GameUnknown Manager Logger Renderer Window)
+target_link_libraries(GameUnknown Manager Logger Renderer Window Input Client)
 
 add_subdirectory(src)
