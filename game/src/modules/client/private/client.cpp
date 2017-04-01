@@ -1,6 +1,12 @@
 #include "client.h"
 
 client::client() {
+  CameraData.WSMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.03125));
+  CameraData.Position = {0, 0, 2};
+  CameraData.Front = {0, 0, -1};
+  CameraData.Up = {0, 1, 0};
+  ClientState.LastMouseX = 320;
+  ClientState.LastMouseY = 240;
 }
 
 void client::start() {
@@ -8,6 +14,7 @@ void client::start() {
   addFunction("setCameraPointers", &client::setCameraPointers);
   addFunction("update", &client::update);
   addFunction("setState", &client::setState);
+  addFunction("setMouse", &client::setMouse);
 }
 
 void client::setCameraPointers(float* CSMatrix, float* WSMatrix, float* Position, std::atomic<bool>* DataIsReady) {
@@ -18,33 +25,84 @@ void client::setCameraPointers(float* CSMatrix, float* WSMatrix, float* Position
 }
 
 void client::update() {
-  //glm::vec3 CameraPosition(1, 1, 1);
-  glm::mat4 PerspectiveMatrix = glm::perspective(glm::radians(45.0f), (float)1 /*(float)(WindowData.WindowWidth / WindowData.WindowHeight)*/, 0.1f, 100.0f);
-  glm::mat4 CameraMatrix = glm::lookAt(CameraPosition, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-  glm::mat4 WSMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.03125)); // 0.03125
-  glm::mat4 CSMatrix = PerspectiveMatrix * CameraMatrix;
+  bool DataIsReady = false;
+  int WindowWidth = 640;
+  int WindowHeight = 480;
+  immediateRequest("Window", "getDataImmediate", &DataIsReady, &WindowWidth, &WindowHeight, &WindowData.DeltaTime);
+  if (WindowData.WindowWidth != WindowWidth || WindowData.WindowHeight != WindowHeight) {
+    CameraData.PerspectiveMatrix = glm::perspective(glm::radians(45.0f), (float)(WindowWidth / WindowHeight), 0.1f, 100.0f);
+    WindowData.WindowWidth = WindowWidth;
+    WindowData.WindowHeight = WindowHeight;
+  }
+  updatePosition();
+  CameraData.CameraMatrix = glm::lookAt(CameraData.Position, CameraData.Position + CameraData.Front, CameraData.Up);
+  
+  //if (anything changes)
+  //  WSMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.03125));
+  
+  CameraData.CSMatrix = CameraData.PerspectiveMatrix * CameraData.CameraMatrix;
 
   if (RendererData.DataIsReady->load() == false) {
-    std::copy(glm::value_ptr(CSMatrix), glm::value_ptr(CSMatrix) + 16, RendererData.CSMatrix);
-    std::copy(glm::value_ptr(WSMatrix), glm::value_ptr(WSMatrix) + 16, RendererData.WSMatrix);
-    std::copy(glm::value_ptr(CameraPosition), glm::value_ptr(CameraPosition) + 3, RendererData.Position);
+    std::copy(glm::value_ptr(CameraData.CSMatrix), glm::value_ptr(CameraData.CSMatrix) + 16, RendererData.CSMatrix);
+    std::copy(glm::value_ptr(CameraData.WSMatrix), glm::value_ptr(CameraData.WSMatrix) + 16, RendererData.WSMatrix);
+    std::copy(glm::value_ptr(CameraData.Position), glm::value_ptr(CameraData.Position) + 3, RendererData.Position);
     RendererData.DataIsReady->store(true);
   }
 }
 
 void client::setState(std::string Type, bool State) {
-  if (Type == "Forward" && State)
-    CameraPosition.z -= 1;
-  if (Type == "Backward" && State)
-    CameraPosition.z += 1;
-  if (Type == "Left" && State)
-    CameraPosition.x += 1;
-  if (Type == "Right" && State)
-    CameraPosition.x -= 1;
+  if (Type == "Forward")
+    ClientState.Keyboard[0] = State;
+  else if (Type == "Backward")
+    ClientState.Keyboard[1] = State;
+  else if (Type == "Left")
+    ClientState.Keyboard[2] = State;
+  else if (Type == "Right")
+    ClientState.Keyboard[3] = State;
+}
+
+
+void client::setMouse(int MouseX, int MouseY) {
+  int MouseOffsetX = MouseX - ClientState.LastMouseX;
+  int MouseOffsetY = ClientState.LastMouseY - MouseY;
+ 
+  ClientState.LastMouseX = MouseX;
+  ClientState.LastMouseY = MouseY;
+
+  float Sensitivity = 0.5; // * WindowData.DeltaTime;
+  MouseOffsetX *= Sensitivity;
+  MouseOffsetY *= Sensitivity;
+
+  ClientState.Yaw += MouseOffsetX;
+  ClientState.Pitch += MouseOffsetY;
+
+  if (ClientState.Pitch > 89)
+    ClientState.Pitch = 89;
+  else if (ClientState.Pitch < -89)
+    ClientState.Pitch = -89;
 }
 
 void client::shutDown() {
 }
 
 client::~client() {
+}
+
+void client::updatePosition() {
+  glm::vec3 Direction;
+  Direction.x = cos(glm::radians(ClientState.Pitch)) * cos(glm::radians(ClientState.Yaw));
+  Direction.y = sin(glm::radians(ClientState.Pitch));
+  Direction.z = cos(glm::radians(ClientState.Pitch)) * sin(glm::radians(ClientState.Yaw));
+  CameraData.Front = glm::normalize(Direction);
+
+  float CameraSpeed = 0.00005 * WindowData.DeltaTime;
+  //Else-if because you can't move frowards and backwards simoultaneously!
+  if (ClientState.Keyboard[0])
+    CameraData.Position += CameraSpeed * CameraData.Front;
+  else if (ClientState.Keyboard[1])
+    CameraData.Position -= CameraSpeed * CameraData.Front;
+  if (ClientState.Keyboard[2])
+    CameraData.Position -= glm::normalize(glm::cross(CameraData.Front, CameraData.Up)) * CameraSpeed;
+  else if (ClientState.Keyboard[3])
+    CameraData.Position += glm::normalize(glm::cross(CameraData.Front, CameraData.Up)) * CameraSpeed;
 }

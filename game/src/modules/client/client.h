@@ -18,6 +18,7 @@ class client : public module {
   void setCameraPointers(float* CSMatrix, float* WSMatrix, float* Position, std::atomic<bool>* DataIsReady);
   void update();
   void setState(std::string Type, bool State);
+  void setMouse(int MouseX, int MouseY);
   virtual void shutDown();
   virtual ~client();
 private:
@@ -27,9 +28,34 @@ private:
     float* Position;
     std::atomic<bool>* DataIsReady;
   };
+  struct camerastruct {
+    glm::vec3 Position;
+    glm::vec3 Front;
+    glm::vec3 Up;
+    glm::mat4 PerspectiveMatrix;
+    glm::mat4 CameraMatrix;
+    glm::mat4 WSMatrix;
+    glm::mat4 CSMatrix;
+  };
+  struct windowstruct {
+    int WindowWidth;
+    int WindowHeight;
+    float DeltaTime;
+  };
+  struct statestruct {
+    bool Keyboard[4];
+    int LastMouseX;
+    int LastMouseY;
+    float Pitch;
+    float Yaw;
+  };
+
+  void updatePosition();
 
   rendererstruct RendererData;
-  glm::vec3 CameraPosition;
+  camerastruct CameraData;
+  windowstruct WindowData;
+  statestruct ClientState;
 };
 
 #endif // _GAME_ENGINE_SRC_MODULE_CLIENT_H_

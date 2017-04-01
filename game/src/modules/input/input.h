@@ -17,7 +17,7 @@ class input : public module {
  private:
   void keyboardEvent(SDL_KeyboardEvent Keyboard);
 
-  bool KeyPressedState[1024];
+  bool KeyPressedState[1025];
 };
 
 #endif // _GAME_ENGINE_SRC_MODULE_INPUT_H_

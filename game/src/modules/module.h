@@ -59,9 +59,12 @@ class module {
       auto FunctionIterator = std::find_if(FunctionArray.begin(), FunctionArray.end(),
           [&](const std::unique_ptr<functionbase>& Function) { return Function->FunctionName == FunctionName; });
       if (FunctionIterator != FunctionArray.end()) {
-        (*FunctionIterator)->Arguments = reinterpret_cast<std::tuple<>*>(&Arguments);
-        ((*FunctionIterator)->execute)();
-      } else {
+        if (!(*FunctionIterator)->IsBusy.load()) {
+          (*FunctionIterator)->IsBusy.store(true);
+          (*FunctionIterator)->Arguments = reinterpret_cast<std::tuple<>*>(&Arguments);
+          ((*FunctionIterator)->execute)();
+          (*FunctionIterator)->IsBusy.store(false);
+      }} else {
         std::string Log = "Function '" + FunctionName + "' not found.";
         request("Logger", "log", *ModuleName, Log);
       }
@@ -128,6 +131,7 @@ class module {
 
     std::string FunctionName;
     std::tuple<>* Arguments;
+    std::atomic<bool> IsBusy;
   };
   template <typename modulechild, typename ...args>
     class function : public functionbase {

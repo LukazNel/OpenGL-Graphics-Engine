@@ -82,9 +82,9 @@ if (ch == 'q')
 }
 
 void manager::getRequests() {
-      for (auto& ModuleIterator : ModuleArray) {
-        std::unique_ptr<module::eventbase> NextEvent = std::move(ModuleIterator.ModulePointer->getRequest());
-        if (NextEvent != nullptr)
-          EventQueue.push(std::move(NextEvent)); 
-      }
+  for (auto& ModuleIterator : ModuleArray) {
+    std::unique_ptr<module::eventbase> NextEvent = std::move(ModuleIterator.ModulePointer->getRequest());
+    if (NextEvent != nullptr)
+      EventQueue.push(std::move(NextEvent)); 
+  }
 }

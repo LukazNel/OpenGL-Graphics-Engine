@@ -1,10 +1,8 @@
 #include "window.h"
 
 window::window() :
-  ExitGame(nullptr),
-  MainWindow(nullptr),
-  MainContext(nullptr) {
-  Configuration = {"A Block's League", 640, 480};
+  ExitGame(nullptr) {
+  WindowData = {"A Block's League", 640, 480, nullptr, nullptr};
 }
 
 void window::start() {
@@ -12,6 +10,7 @@ void window::start() {
   addFunction("setInterrupt", &window::setInterrupt);
   addFunction("quit", &window::quit);
   addFunction("getWindowData", &window::getWindowData);
+  addFunction("getDataImmediate", &window::getDataImmediate);
   addFunction("begin", &window::begin);
   addFunction("refresh", &window::refresh);
 }
@@ -27,13 +26,20 @@ void window::quit() {
 void window::getWindowData(window** WindowPointer, void(window::** SwapPointer)(), int* WindowWidth, int* WindowHeight, std::atomic<bool>* DataIsReady) {
   *WindowPointer = this;
   *SwapPointer = &window::swapBuffers;
-  *WindowWidth = Configuration.WindowWidth;
-  *WindowHeight = Configuration.WindowHeight;
+  *WindowWidth = WindowData.WindowWidth;
+  *WindowHeight = WindowData.WindowHeight;
   DataIsReady->store(true);
 }
 
+void window::getDataImmediate(std::promise<bool>* DataIsReady, int* WindowWidth, int* WindowHeight, float* DeltaTime) {
+  *WindowWidth = WindowData.WindowWidth;
+  *WindowHeight = WindowData.WindowHeight;
+  *DeltaTime = TimeData.DeltaTime;
+  DataIsReady->set_value(true);
+}
+
 void window::swapBuffers() {
-  SDL_GL_SwapWindow(MainWindow);
+  SDL_GL_SwapWindow(WindowData.MainWindow);
 }
 
 void window::begin() {
@@ -44,14 +50,14 @@ void window::begin() {
   }
   SDL_GL_LoadLibrary(nullptr);
   setOpenGLAttributes();
-  MainWindow = SDL_CreateWindow(Configuration.ProgramName.c_str(), 0, 0, 640, 480, SDL_WINDOW_OPENGL);
-  if (!MainWindow) {
+  WindowData.MainWindow = SDL_CreateWindow(WindowData.ProgramName.c_str(), 0, 0, WindowData.WindowWidth, WindowData.WindowHeight, SDL_WINDOW_OPENGL);
+  if (!WindowData.MainWindow) {
     std::string Log = "Window creation failed.";
     request("Logger", "log", getName(), Log);
     quit();
   }
-  MainContext = SDL_GL_CreateContext(MainWindow);
-  SDL_GL_MakeCurrent(MainWindow, MainContext);
+  WindowData.MainContext = SDL_GL_CreateContext(WindowData.MainWindow);
+  SDL_GL_MakeCurrent(WindowData.MainWindow, WindowData.MainContext);
   gladLoadGLLoader(GLADloadproc (SDL_GL_GetProcAddress));
   SDL_GL_SetSwapInterval(1);
 }
@@ -69,7 +75,7 @@ if (Event.type == SDL_KEYDOWN)
 
 void window::shutDown() {
   //SDL_DeleteContext(MainContext);
-  SDL_DestroyWindow(MainWindow);
+  SDL_DestroyWindow(WindowData.MainWindow);
   SDL_Quit();
 }
 
@@ -83,16 +89,14 @@ void window::setOpenGLAttributes() {
 }
 
 void window::frameCount() {
-  static int NFrames;
-  static double LastTime;
   double CurrentTime = SDL_GetTicks();
-  double ElapsedTime = CurrentTime - LastTime;
-  if (ElapsedTime > 500) {
-    double Fps = NFrames / ElapsedTime * 1000;
-    std::string FpsTitle = Configuration.ProgramName + " @ " + std::to_string(Fps) + " Frames per Second";
-    SDL_SetWindowTitle(MainWindow, FpsTitle.c_str());
-    LastTime = CurrentTime;
-    NFrames = 0;
+  TimeData.DeltaTime = CurrentTime - TimeData.LastTime;
+  if (TimeData.DeltaTime > 500) {
+    float Fps = TimeData.DeltaTime / TimeData.NFrames;
+    std::string FpsTitle = WindowData.ProgramName + " @ " + std::to_string(Fps) + " Frames per Second";
+    SDL_SetWindowTitle(WindowData.MainWindow, FpsTitle.c_str());
+    TimeData.LastTime = CurrentTime;
+    TimeData.NFrames = 0;
   }
-  NFrames++;
+  TimeData.NFrames++;
 }
