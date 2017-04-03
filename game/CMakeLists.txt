@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.6)
-project (GameUnknown CXX)
+project (A_Blocks_League CXX)
 
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
@@ -9,9 +9,10 @@ set(PROJECT_SOURCE_DIR ${CMAKE_SOURCE_DIR}/src)
 set(PROJECT_SRCS ${PROJECT_SOURCE_DIR}/main.cpp)
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 add_definitions(-std=c++14 -O0)
 
-add_executable(GameUnknown ${PROJECT_SRCS})
-target_link_libraries(GameUnknown Manager Logger Renderer Window Input Client)
+add_executable(${PROJECT_NAME} ${PROJECT_SRCS})
+target_link_libraries(${PROJECT_NAME} Manager Logger Renderer Window Input Client)
 
 add_subdirectory(src)

@@ -20,13 +20,13 @@ struct lightstruct {
 };
 
 lightstruct LightArray[] = {
-  {{1.0, 1.0, 1.0, 1.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
+  {{1.0, 1.0, 1.0, 1.0}, {0.75, 1.0, 1.0}, 0.8, 0.05},
   {{-1.0, 1.0, 1.0, 1.0}, {0.0, 1.0, 1.0}, 0.2, 0.005},
   {{0.0, -13.0, 0.0, 1.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
-  {{-2.0, 3.0, 1.0, 0.0}, {1.0, 1.0, 1.0}, 0.2, 0.005}
+  {{-2.0, 3.0, 1.0, 1.0}, {1.0, 1.0, 1.0}, 0.2, 0.005}
 };
 
-uint64_t InputArray[][2] {{5771136619255974480, 17592186044417}, {129354334032, 8796093022209}, {65376, 3}, {21568, 1}, {19952, 4194305}, {56448, 8388609}};
+//uint64_t BlockArray[][2] {{5771136619255974480, 17592186044417}, {129354334032, 8796093022209}, {65376, 3}, {21568, 1}, {19952, 4194305}, {56448, 8388609}};
 //      -- --
 
 struct block {
@@ -68,7 +68,7 @@ void renderer::start() {
   addFunction("draw", &renderer::draw);
   addFunction("cleanUp", &renderer::cleanUp);
   request("Window", "getWindowData", &WindowData.ObjectPointer, &WindowData.SwapBuffers, &WindowData.WindowWidth, &WindowData.WindowHeight, &WindowData.DataIsReady);
-  request("Client", "setCameraPointers", (float*)NewCameraData.CSMatrix, (float*)NewCameraData.WSMatrix, (float*)NewCameraData.Position, &NewCameraData.DataIsReady);
+  request("Client", "setCameraPointers", (float*)NewCameraData.CSMatrix, (float*)NewCameraData.WSMatrix, (float*)NewCameraData.SkyboxMatrix, (float*)NewCameraData.Position, &NewCameraData.DataIsReady);
 }
 
 void renderer::prepare() {
@@ -79,6 +79,7 @@ void renderer::prepare() {
   preparePrograms();
   prepareBuffers();
   prepareUniforms();
+  prepareSkybox();
   prepareState();
  
   ProgramManager.installProgram("ComputeProgram");
@@ -102,15 +103,20 @@ void renderer::prepare() {
 void renderer::preparePrograms() {
   ProgramManager.createShader("intermediate/vertex.vert.glsl", GL_VERTEX_SHADER);
   ProgramManager.createShader("intermediate/fragment.frag.glsl", GL_FRAGMENT_SHADER);
-  ProgramManager.createShader("intermediate/compute.comp.glsl", GL_COMPUTE_SHADER);
+  ProgramManager.createProgram("Program");
+  ProgramManager.addShader("Program", "intermediate/vertex.vert.glsl", "intermediate/fragment.frag.glsl");
+  ProgramManager.linkProgram("Program");
 
+  ProgramManager.createShader("intermediate/compute.comp.glsl", GL_COMPUTE_SHADER);
   ProgramManager.createProgram("ComputeProgram");
   ProgramManager.addShader("ComputeProgram", "intermediate/compute.comp.glsl");
   ProgramManager.linkProgram("ComputeProgram");
 
-  ProgramManager.createProgram("Program");
-  ProgramManager.addShader("Program", "intermediate/vertex.vert.glsl", "intermediate/fragment.frag.glsl");
-  ProgramManager.linkProgram("Program");
+  ProgramManager.createShader("intermediate/skybox.vert.glsl", GL_VERTEX_SHADER);
+  ProgramManager.createShader("intermediate/skybox.frag.glsl", GL_FRAGMENT_SHADER);
+  ProgramManager.createProgram("Skybox");
+  ProgramManager.addShader("Skybox", "intermediate/skybox.vert.glsl", "intermediate/skybox.frag.glsl");
+  ProgramManager.linkProgram("Skybox");
 }
 
 void renderer::prepareBuffers() {
@@ -118,13 +124,13 @@ void renderer::prepareBuffers() {
 
   GLuint InputBindingPoint = 1;
   ProgramManager.setBinding("ComputeProgram", GL_UNIFORM_BLOCK, "InputBuffer", InputBindingPoint);
-  BufferManager.setBuffer("InputBuffer", GL_UNIFORM_BUFFER, sizeof(InputArray), InputArray, GL_STATIC_DRAW); // Actual Size: 4194304
+  BufferManager.setBuffer("InputBuffer", GL_UNIFORM_BUFFER, sizeof(BlockArray), BlockArray, GL_STATIC_DRAW); // Actual Size: 4194304
   BufferManager.bindBuffer("InputBuffer", InputBindingPoint);
 
   GLuint StorageBindingPoint = 2;
   ProgramManager.setBinding("ComputeProgram", GL_SHADER_STORAGE_BLOCK, "StorageBuffer", StorageBindingPoint);
   ProgramManager.setBinding("Program", GL_SHADER_STORAGE_BLOCK, "StorageBuffer", StorageBindingPoint);
-  BufferManager.setBuffer("StorageBuffer", GL_SHADER_STORAGE_BUFFER, sizeof(block) * 6, nullptr, GL_DYNAMIC_COPY);
+  BufferManager.setBuffer("StorageBuffer", GL_SHADER_STORAGE_BUFFER, sizeof(block) * 10000, nullptr, GL_DYNAMIC_COPY);
   BufferManager.bindBuffer("StorageBuffer", StorageBindingPoint);
 
   GLuint ColourBindingPoint = 3;
@@ -142,7 +148,7 @@ void renderer::prepareBuffers() {
   glGenTextures( 1, &FrameBufferTexture );
   glBindTexture( GL_TEXTURE_2D_MULTISAMPLE, FrameBufferTexture );
   glTexImage2DMultisample( GL_TEXTURE_2D_MULTISAMPLE, num_samples, GL_RGBA8, WindowData.WindowWidth, WindowData.WindowHeight, true );
-  glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+  //glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
 
   BufferManager.createRenderBuffers(1, "RenderBuffer");
   BufferManager.setRenderBuffer("RenderBuffer", num_samples, GL_DEPTH24_STENCIL8, WindowData.WindowWidth, WindowData.WindowHeight);
@@ -154,10 +160,10 @@ void renderer::prepareBuffers() {
 
 void renderer::prepareUniforms() {
   GLint CSMatrixUniform = ProgramManager.getResourceLocation("Program", GL_UNIFORM, "CSMatrix");
-  UniformManager.createUniformMatrix("CSMatrixUniform", 4, CSMatrixUniform);
+  UniformManager.createUniformMatrix("CSMatrixMain", 4, CSMatrixUniform);
 
   GLint WSMatrixUniform = ProgramManager.getResourceLocation("Program", GL_UNIFORM, "WSMatrix");
-  UniformManager.createUniformMatrix("WSMatrixUniform", 4, WSMatrixUniform);
+  UniformManager.createUniformMatrix("WSMatrixMain", 4, WSMatrixUniform);
   
   GLint NumLights = ProgramManager.getResourceLocation("Program", GL_UNIFORM, "NumLights");
   UniformManager.createUniform("NumLights", 1, NumLights);
@@ -167,6 +173,33 @@ void renderer::prepareUniforms() {
 
   ProgramManager.installProgram("Program");
   UniformManager.setUniform("NumLights", 2);
+  
+  CSMatrixUniform = ProgramManager.getResourceLocation("Skybox", GL_UNIFORM, "SkyboxMatrix");
+  UniformManager.createUniformMatrix("CSMatrixSkybox", 4, CSMatrixUniform);
+
+}
+
+void renderer::prepareSkybox() {
+  GLuint SkyboxTexture;
+  glGenTextures(1, &SkyboxTexture);
+  glActiveTexture(GL_TEXTURE0);
+
+  int Width, Height, Channels;
+  unsigned char* Image;
+  
+  glBindTexture(GL_TEXTURE_CUBE_MAP, SkyboxTexture);
+  std::string Suffix[6] = {"_RT", "_LF", "_UP", "_DN", "_BK", "_FR"};
+  for (int i = 0; i < 6; i++) {
+    Image = stbi_load(std::string("content/skybox/sky8" + Suffix[i] + ".jpg").c_str(), &Width, &Height, &Channels, 3);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, Width, Height, 0, GL_RGB, GL_UNSIGNED_BYTE, Image);
+    stbi_image_free(Image);
+  }
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+  //glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 }
 
 void renderer::prepareState() {
@@ -175,7 +208,7 @@ void renderer::prepareState() {
   glEnable(GL_CULL_FACE);
   glCullFace(GL_BACK);
   glFrontFace(GL_CW);
-  glDepthFunc(GL_LEQUAL); //glDepthFunc(GL_LESS);
+  //glDepthFunc(GL_LEQUAL); //glDepthFunc(GL_LESS);
   glClearColor(0.0, 0.5, 1.0, 1.0);
 }
 
@@ -183,18 +216,25 @@ void renderer::draw() {
   if (NewCameraData.DataIsReady.load()) {
     std::copy(NewCameraData.CSMatrix, NewCameraData.CSMatrix + 16, CurrentCameraData.CSMatrix);
     std::copy(NewCameraData.WSMatrix, NewCameraData.WSMatrix + 16, CurrentCameraData.WSMatrix);
+    std::copy(NewCameraData.SkyboxMatrix, NewCameraData.SkyboxMatrix + 16, CurrentCameraData.SkyboxMatrix);
     std::copy(NewCameraData.Position, NewCameraData.Position + 3, CurrentCameraData.Position);
     NewCameraData.DataIsReady.store(false); // Handshaking: State says true and Renderer changes data, Renderer says false and State changed data.
   }
 
-  ProgramManager.installProgram("Program");
-  UniformManager.setUniform("CSMatrixUniform", (GLfloat*)(CurrentCameraData.CSMatrix));
-  UniformManager.setUniform("WSMatrixUniform", (GLfloat*)(CurrentCameraData.WSMatrix));
-  UniformManager.setUniform("CameraPosition", (GLfloat*)(CurrentCameraData.Position));
-  
   BufferManager.bindFrameBuffer("FrameBuffer", GL_FRAMEBUFFER);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  glDrawArrays(GL_TRIANGLES, 0, 144);
+  
+  glDepthFunc(GL_LESS);
+  ProgramManager.installProgram("Program");
+  UniformManager.setUniform("CSMatrixMain", (GLfloat*)(CurrentCameraData.CSMatrix));
+  UniformManager.setUniform("WSMatrixMain", (GLfloat*)(CurrentCameraData.WSMatrix));
+  UniformManager.setUniform("CameraPosition", (GLfloat*)(CurrentCameraData.Position));
+  glDrawArrays(GL_TRIANGLES, 0, 12288); //24
+
+  glDepthFunc(GL_LEQUAL);
+  ProgramManager.installProgram("Skybox");
+  UniformManager.setUniform("CSMatrixSkybox", (GLfloat*)(CurrentCameraData.SkyboxMatrix));
+  glDrawArrays(GL_TRIANGLES, 0, 36);
 
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
   BufferManager.bindFrameBuffer("FrameBuffer", GL_READ_FRAMEBUFFER);

@@ -2,7 +2,7 @@
 
 window::window() :
   ExitGame(nullptr) {
-  WindowData = {"A Block's League", 640, 480, nullptr, nullptr};
+  WindowData = {"A Block's League", 1920, 1080, nullptr, nullptr};
 }
 
 void window::start() {
@@ -66,10 +66,6 @@ void window::refresh() {
   frameCount();
   while(SDL_PollEvent(&Event)) {
     request("Input", "updateEvents", Event);
-/*if (Event.type == SDL_QUIT)
-  quit();
-if (Event.type == SDL_KEYDOWN)
-  quit();*/
   }
 }
 

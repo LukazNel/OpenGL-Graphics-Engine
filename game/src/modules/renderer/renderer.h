@@ -3,13 +3,16 @@
 
 #include <memory>
 #include <atomic>
+#include <cstdio>
 
 #include "modules/module.h"
 #include "modules/window/window.h"
 
 #include "external/include/glad.h"
+#include "external/include/stb_image.h"
 
-#include "classes/colourArray.h"
+#include "content/colourArray.h"
+#include "content/blockarray.h"
 #include "classes/program_manager.h"
 #include "classes/buffer_manager.h"
 #include "classes/uniform_manager.h"
@@ -36,6 +39,7 @@ class renderer : public module {
   struct camerastruct {
     float CSMatrix[16];
     float WSMatrix[16];
+    float SkyboxMatrix[16];
     float Position[3];
     std::atomic<bool> DataIsReady;
   };
@@ -43,6 +47,7 @@ class renderer : public module {
   void preparePrograms();
   void prepareBuffers();
   void prepareUniforms();
+  void prepareSkybox();
   void prepareState();
 
   void swapBuffers();

@@ -14,7 +14,7 @@ struct block {
 };
 
 layout(std140) uniform InputBuffer {
-  u64vec2 InputArray[4]; // (8x8x8)(8x8x8)
+  u64vec2 InputArray[512]; // (8x8x8)(8x8x8)
 } BufferIn;
 
 layout(std430) buffer StorageBuffer {
@@ -68,28 +68,32 @@ vec4 qMultiply(vec4 Q1, vec4 Q2) {
 
 void main(void) {
   block DecodedBlock;
-  uint64_t Coordinates = BufferIn.InputArray[gl_LocalInvocationID.x].y;
-  uint64_t Info = BufferIn.InputArray[gl_LocalInvocationID.x].x;
+  vec3 GlobalWorkGroupSize = gl_WorkGroupSize * gl_NumWorkGroups;
+  const int GlobalInvocationIndex = (int)(gl_GlobalInvocationID.z * GlobalWorkGroupSize.x *GlobalWorkGroupSize.y + gl_LocalInvocationID.y * GlobalWorkGroupSize.x + gl_LocalInvocationID.x);
+  uint64_t Coordinates = BufferIn.InputArray[GlobalInvocationIndex].x;
+  uint64_t Info = BufferIn.InputArray[GlobalInvocationIndex].y;
 
   if ((bool)(Coordinates & 0x1)) {
     Coordinates >>= 1;
     Info >>= 1;
+    
     DecodedBlock.Coordinates.x = (int)(Coordinates & 0x1FFFFF);
-    Info >>= 1;
     if ((bool)(Info & 0x1))
       DecodedBlock.Coordinates.x *= -1;
     Coordinates >>= 21;
+    Info >>= 1;
 
     DecodedBlock.Coordinates.y = (int)(Coordinates & 0x1FFFFF);
-    Info >>= 1;
     if ((bool)(Info & 0x1))
       DecodedBlock.Coordinates.y *= -1;
     Coordinates >>= 21;
+    Info >>= 1;
 
     DecodedBlock.Coordinates.z = (int)(Coordinates & 0x1FFFFF);
-    Info >>= 1;
     if ((bool)(Info & 0x1))
       DecodedBlock.Coordinates.z *= -1;
+    //Coordinates >>= 21;
+    Info >>= 1;
 
     uint64_t MortonIndex = mortonEncode_magicbits((uint)(DecodedBlock.Coordinates.x * 2), (uint)(DecodedBlock.Coordinates.y * 2), (uint)(DecodedBlock.Coordinates.z * 2)); // Times two because negative is removed.
 
@@ -141,6 +145,6 @@ void main(void) {
     if ((bool)(Info & 0x1))
       DecodedBlock.Offset.z *= -1;
 
-    BufferOut.BlockArray[gl_LocalInvocationID.x] = DecodedBlock;
+    BufferOut.BlockArray[GlobalInvocationIndex] = DecodedBlock;
   }
 }

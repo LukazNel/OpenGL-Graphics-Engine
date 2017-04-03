@@ -4,7 +4,7 @@ project(Renderer CXX)
 set(MODULE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/private)
 set(MODULE_SRCS ${MODULE_SOURCE_DIR}/renderer.cpp)
 set(MODULE_LIBRARIES ProgramManager BufferManager UniformManager VertexArrayManager)
-set(MODULE_LINK_LIBRARIES ${MODULE_LIBRARIES} dl ${OPENGL_glu_LIBRARY})
+set(MODULE_LINK_LIBRARIES ${MODULE_LIBRARIES} dl ${OPENGL_glu_LIBRARY} StbImage)
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 add_library(${PROJECT_NAME} STATIC ${MODULE_SRCS} )

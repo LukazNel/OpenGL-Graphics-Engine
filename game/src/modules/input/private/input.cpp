@@ -35,6 +35,8 @@ void input::keyboardEvent(SDL_KeyboardEvent Keyboard) {
     Keyboard.keysym.sym = 1024;
   if (KeyPressedState[Keyboard.keysym.sym] != State) {
     switch (Keyboard.keysym.sym) {
+      case SDLK_q : request("Window", "quit");
+               break;
       case SDLK_w : request("Client", "setState", std::string("Forward"), State);
                break;
       case SDLK_s : request("Client", "setState", std::string("Backward"), State);
@@ -42,6 +44,10 @@ void input::keyboardEvent(SDL_KeyboardEvent Keyboard) {
       case SDLK_a : request("Client", "setState", std::string("Left"), State);
                break;
       case SDLK_d : request("Client", "setState", std::string("Right"), State);
+               break;
+      case SDLK_SPACE : request("Client", "setState", std::string("Up"), State);
+               break;
+      case SDLK_z : request("Client", "setState", std::string("Down"), State);
     }
     KeyPressedState[Keyboard.keysym.sym] = State;
   }

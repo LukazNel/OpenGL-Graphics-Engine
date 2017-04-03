@@ -15,7 +15,7 @@ class client : public module {
  public:
   client();
   virtual void start();
-  void setCameraPointers(float* CSMatrix, float* WSMatrix, float* Position, std::atomic<bool>* DataIsReady);
+  void setCameraPointers(float* CSMatrix, float* WSMatrix, float* SkyboxMatrix, float* Position, std::atomic<bool>* DataIsReady);
   void update();
   void setState(std::string Type, bool State);
   void setMouse(int MouseX, int MouseY);
@@ -25,6 +25,7 @@ private:
   struct rendererstruct {
     float* CSMatrix;
     float* WSMatrix;
+    float* SkyboxMatrix;
     float* Position;
     std::atomic<bool>* DataIsReady;
   };
@@ -36,6 +37,7 @@ private:
     glm::mat4 CameraMatrix;
     glm::mat4 WSMatrix;
     glm::mat4 CSMatrix;
+    glm::mat4 SkyboxMatrix;
   };
   struct windowstruct {
     int WindowWidth;
@@ -43,7 +45,7 @@ private:
     float DeltaTime;
   };
   struct statestruct {
-    bool Keyboard[4];
+    bool Keyboard[6];
     int LastMouseX;
     int LastMouseY;
     float Pitch;
