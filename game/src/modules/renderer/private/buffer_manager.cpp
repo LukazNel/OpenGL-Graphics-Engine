@@ -30,6 +30,15 @@ void buffermanager::bindBuffer(const std::string BufferName, GLuint BindingPoint
   }
 }
 
+void buffermanager::bindBuffer(const std::string BufferName, GLenum CustomType, GLuint BindingPoint) {
+  auto BufferIterator = findBuffer(BufferName);
+  if (BufferIterator != BufferArray.end()) {
+    glBindBuffer(BufferIterator->Type, BufferIterator->Handle);
+    glBindBufferBase(CustomType, BindingPoint, BufferIterator->Handle);
+    LogString += "Buffer '" + BufferName + "' bound to binding point " + std::to_string(BindingPoint) + ".\n";
+  }
+}
+
 void buffermanager::getBuffer(const std::string BufferName, int Offset, int Size, void* Data) {
   auto BufferIterator = findBuffer(BufferName);
   if (BufferIterator != BufferArray.end()) {

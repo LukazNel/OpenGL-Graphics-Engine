@@ -14,16 +14,23 @@ struct block {
 };
 
 layout(std140) uniform InputBuffer {
-  u64vec2 InputArray[512]; // (8x8x8)(8x8x8)
+  u64vec2 InputArray[194]; // (8x8x8)(8x8x8)
 } BufferIn;
 
 layout(std430) buffer StorageBuffer {
-  block BlockArray[]; // (60MB)
+  block BlockArray[1024]; // (60MB)
 } BufferOut;
 
 layout(std140) uniform ColourUniform {
   vec3 ColourArray[1022];
 };
+
+layout(std430) buffer DrawBuffer {
+  uint Count;
+  uint InstanceCount;
+  uint First;
+  uint BaseInstance;
+} Draw;
 
 // method to seperate bits from a given integer 3 positions apart
 uint64_t splitBy3(unsigned int a) {
@@ -145,6 +152,16 @@ void main(void) {
     if ((bool)(Info & 0x1))
       DecodedBlock.Offset.z *= -1;
 
+    uint Morton1 = uint(MortonIndex >> 32);
+    uint Morton2 = uint(MortonIndex & (0xFFFFFF << 32));
+    //BufferOut.BlockArray[(Morton1 << 32) | Morton2] = DecodedBlock;
     BufferOut.BlockArray[GlobalInvocationIndex] = DecodedBlock;
+    //atomicAdd(Draw.Count, 36);
+    atomicMax(Draw.Count, GlobalInvocationIndex * 36);
+    //atomicExchange(Draw.count, 700);
+    //Draw.Count += 36;
+    //Draw.Count = 700;
+    //atomicMin(Draw.First, int(Morton1 / 36));
+    //Draw.First = (Morton1 << 32) | Morton1;
   }
 }

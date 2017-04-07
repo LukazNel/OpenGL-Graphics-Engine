@@ -17,10 +17,10 @@ void client::start() {
   addFunction("setMouse", &client::setMouse);
 }
 
-void client::setCameraPointers(float* CSMatrix, float* WSMatrix, float* SkyboxMatrix, float* Position, std::atomic<bool>* DataIsReady) {
+void client::setCameraPointers(float* CSMatrix, float* WSMatrix, float* SkydomeMatrix, float* Position, std::atomic<bool>* DataIsReady) {
   RendererData.CSMatrix = CSMatrix;
   RendererData.WSMatrix = WSMatrix;
-  RendererData.SkyboxMatrix = SkyboxMatrix;
+  RendererData.SkydomeMatrix = SkydomeMatrix;
   RendererData.Position = Position;
   RendererData.DataIsReady = DataIsReady;
 }
@@ -39,7 +39,7 @@ void client::update() {
   WindowData.DeltaTime = (WindowData.DeltaTime + NewDeltaTime) / 2;
   updatePosition();
   CameraData.CameraMatrix = glm::lookAt(CameraData.Position, CameraData.Position + CameraData.Front, CameraData.Up);
-  CameraData.SkyboxMatrix = CameraData.PerspectiveMatrix * glm::lookAt(glm::vec3(CameraData.Position.x, CameraData.Position.y + 0.25, CameraData.Position.z), CameraData.Position + glm::vec3(CameraData.Front.x, -CameraData.Front.y, -CameraData.Front.z), CameraData.Up);
+  CameraData.SkydomeMatrix = CameraData.PerspectiveMatrix * glm::lookAt(glm::vec3(CameraData.Position.x, CameraData.Position.y + 0.0, CameraData.Position.z), CameraData.Position + glm::vec3(CameraData.Front.x, -CameraData.Front.y, -CameraData.Front.z), CameraData.Up);
   
   //if (anything changes)
   //  WSMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.03125));
@@ -49,7 +49,7 @@ void client::update() {
   if (RendererData.DataIsReady->load() == false) {
     std::copy(glm::value_ptr(CameraData.CSMatrix), glm::value_ptr(CameraData.CSMatrix) + 16, RendererData.CSMatrix);
     std::copy(glm::value_ptr(CameraData.WSMatrix), glm::value_ptr(CameraData.WSMatrix) + 16, RendererData.WSMatrix);
-    std::copy(glm::value_ptr(CameraData.SkyboxMatrix), glm::value_ptr(CameraData.SkyboxMatrix) + 16, RendererData.SkyboxMatrix);
+    std::copy(glm::value_ptr(CameraData.SkydomeMatrix), glm::value_ptr(CameraData.SkydomeMatrix) + 16, RendererData.SkydomeMatrix);
     std::copy(glm::value_ptr(CameraData.Position), glm::value_ptr(CameraData.Position) + 3, RendererData.Position);
     RendererData.DataIsReady->store(true);
   }
@@ -104,16 +104,16 @@ void client::updatePosition() {
   Direction.z = cos(glm::radians(ClientState.Pitch)) * sin(glm::radians(ClientState.Yaw));
   CameraData.Front = glm::normalize(Direction);
 
-  float CameraSpeed = 0.05;// * WindowData.DeltaTime;
+  float CameraSpeed = 0.05; //* WindowData.DeltaTime;
   //Else-if because you can't move frowards and backwards simoultaneously!
   if (ClientState.Keyboard[0])
-    CameraData.Position += CameraData.Front * CameraSpeed;
+    CameraData.Position += glm::vec3(CameraData.Front.x * CameraSpeed, 0, CameraData.Front.z * CameraSpeed);
   else if (ClientState.Keyboard[1])
-    CameraData.Position -= CameraData.Front * CameraSpeed;
+    CameraData.Position -= glm::vec3(CameraData.Front.x * CameraSpeed, 0, CameraData.Front.z * CameraSpeed);
   if (ClientState.Keyboard[2])
-    CameraData.Position -= glm::normalize(glm::cross(CameraData.Front, CameraData.Up)) * CameraSpeed;
+    CameraData.Position -= glm::normalize(glm::cross(CameraData.Front, CameraData.Up)) * (CameraSpeed / 2);
   else if (ClientState.Keyboard[3])
-    CameraData.Position += glm::normalize(glm::cross(CameraData.Front, CameraData.Up)) * CameraSpeed;
+    CameraData.Position += glm::normalize(glm::cross(CameraData.Front, CameraData.Up)) * (CameraSpeed / 2);
   if (ClientState.Keyboard[4])
     CameraData.Position += CameraData.Up * CameraSpeed;
   else if (ClientState.Keyboard[5])

@@ -39,7 +39,7 @@ class renderer : public module {
   struct camerastruct {
     float CSMatrix[16];
     float WSMatrix[16];
-    float SkyboxMatrix[16];
+    float SkydomeMatrix[16];
     float Position[3];
     std::atomic<bool> DataIsReady;
   };
@@ -47,7 +47,7 @@ class renderer : public module {
   void preparePrograms();
   void prepareBuffers();
   void prepareUniforms();
-  void prepareSkybox();
+  void prepareSkydome();
   void prepareState();
 
   void swapBuffers();

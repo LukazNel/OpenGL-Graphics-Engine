@@ -49,7 +49,7 @@ void manager::managerLoop() {
       EventIterator = std::find_if(ModuleArray.begin(), ModuleArray.end(), 
               [&] (const modulestruct& ModuleStructVar) {
                 return ModuleStructVar.ModuleName == NextEvent->ModuleName;});
-    } else if (EventQueue.empty()) {
+    } else if (EventQueue.empty() && !ManagerLoopInterrupt.load()) {
         request("Renderer", "draw", true);
         request("Window", "refresh", false);
         request("Client", "update", false); //It has to happen at the beginning of frame, to update everything in time.

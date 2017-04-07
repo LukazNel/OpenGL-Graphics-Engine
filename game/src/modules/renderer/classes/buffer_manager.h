@@ -39,6 +39,7 @@ class buffermanager {
   void setBuffer(const std::string BufferName, const GLenum BufferType, int Size, const void* Data, GLenum Usage);
   void bindBuffer(const std::string BufferName);
   void bindBuffer(const std::string BufferName, GLuint BindingPoint);
+  void bindBuffer(const std::string BufferName, GLenum CustomType, GLuint BindingPoint);
   void getBuffer(const std::string BufferName, int Offset, int Size, void* Data);
 
   void setRenderBuffer(const std::string RenderBufferName, int Samples, GLenum InternalFormat, int Width, int Height);
@@ -58,7 +59,6 @@ class buffermanager {
   struct buffer {
     std::string Name;
     GLenum Type;
-    int Location;
     GLuint Handle;
   };
   struct renderbuffer {

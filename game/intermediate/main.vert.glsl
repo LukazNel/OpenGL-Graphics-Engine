@@ -42,7 +42,7 @@ vec3 Positions = vec3(0, -2, 2);
 
 void main() {
   int Index = gl_VertexID / 36;
-  int VertexID = gl_VertexID % 36;
+  int VertexID = gl_VertexID  % 36;
   block Block = BufferIn.BlockArray[Index];
   vec3 Vertex = ExpandArray[VertexID];
   vec3 RotatedPosition = Vertex + (2 * cross(Block.Quaternion.xyz, (cross(Block.Quaternion.xyz, Vertex) + Block.Quaternion.w * Vertex)));

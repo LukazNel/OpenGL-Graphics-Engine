@@ -89,7 +89,7 @@ void window::frameCount() {
   TimeData.DeltaTime = CurrentTime - TimeData.LastTime;
   if (TimeData.DeltaTime > 500) {
     float Fps = TimeData.DeltaTime / TimeData.NFrames;
-    std::string FpsTitle = WindowData.ProgramName + " @ " + std::to_string(Fps) + " Frames per Second";
+    std::string FpsTitle = WindowData.ProgramName + " @ " + std::to_string(Fps) + " Seconds per Frame.";
     SDL_SetWindowTitle(WindowData.MainWindow, FpsTitle.c_str());
     TimeData.LastTime = CurrentTime;
     TimeData.NFrames = 0;
