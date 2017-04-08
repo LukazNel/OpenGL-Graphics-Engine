@@ -4,8 +4,6 @@
 #include <cstdlib>
 #include <cstdint>
 
-//#define FileOut std::cout
-
 struct block {
   int Coordinates[3];
   unsigned int Colour;
@@ -16,28 +14,31 @@ struct block {
 
 void mortonEncode(block &Block, uint64_t (&Output)[2]);
 
-int main() {
-  std::cout << "Enter seed:" << std::endl;
-  int Seed;
-  std::cin >> Seed;
+int main(int argc, char* argv[]) {
+  int XSize, YSize, ZSize, Seed;
+  if (argc != 5) {
+    std::cout << "usage: blocker [x] [y] [z] [seed]" << std::endl;
+    std::exit(EXIT_FAILURE);
+  } else {
+    XSize = std::stoi(argv[1]);
+    YSize = std::stoi(argv[2]);
+    ZSize = std::stoi(argv[3]);
+    Seed = std::stoi(argv[4]);
+  }
   srand(Seed);
 
-  std::fstream FileOut("blockarray.h", std::ios::out | std::ios::trunc);
+  std::fstream FileOut("blockarray", std::ios::out | std::ios::trunc | std::ios::binary);
 
-  FileOut << "#ifndef __blockarray_h_" << std::endl
-          << "#define __blockarray_h_" << std::endl << std::endl
-          << "static const uint64_t BlockArray[10000][2] {" << std::endl;
-
-  for (int i = 0; i < 100; i++) {
-    for (int k = 0; k < 100; k++) {
-      block Block = {{i, 0, k}, rand() % 1024, rand() % 4, {0, 0, 0}, {0, 0, 0}};
-      uint64_t Answer[2] = {0, 0};
-      mortonEncode(Block, Answer);
-      FileOut << "{" << Answer[0] << ", " << Answer[1] << "}, ";
+  for (int x = 0; x < XSize; x++) {
+    for (int y = 0; y < YSize; y++) {
+      for (int z = 0; z < ZSize; z++) {
+        block Block = {{x, y, z}, x, 1, {0, 0, 0}, {0, 0, 0}};
+        uint64_t Answer[2] = {0, 0};
+        mortonEncode(Block, Answer);
+        FileOut.write((char*)Answer, 16);
+      }
     }
-    FileOut << std::endl;
   }
-  FileOut << std::endl << std::endl << "#endif";
   FileOut.close();
   return 0;
 }

@@ -4,12 +4,39 @@ buffermanager::buffermanager() {
   LogString += '\n';
 }
 
-void buffermanager::setBuffer(const std::string BufferName, const GLenum BufferType, int Size, const void* Data, GLenum Usage) {
+void buffermanager::setBuffer(const std::string BufferName, const GLenum BufferType, int Size, const void* Data, GLbitfield Usage) {
   auto BufferIterator = findBuffer(BufferName);
   if (BufferIterator != BufferArray.end()) {
     BufferIterator->Type = BufferType;
-    glNamedBufferData(BufferIterator->Handle, Size, Data, Usage);
+    glNamedBufferStorage(BufferIterator->Handle, Size, Data, Usage);
     LogString += "Buffer '" + BufferName + "' set.\n";
+  }
+}
+
+void buffermanager::mapBuffer(const std::string BufferName, int Offset, int Size, const GLbitfield Access) {
+  auto BufferIterator = findBuffer(BufferName);
+  if (BufferIterator != BufferArray.end()) {
+    BufferIterator->BufferAddress = glMapNamedBuffer(BufferIterator->Handle, Access);
+    BufferIterator->BufferAddress = glMapNamedBufferRange(BufferIterator->Handle, Offset, Size, Access);
+    if (BufferIterator->BufferAddress == nullptr)
+      LogString += "Warning: Buffer '" + BufferName + "' not mapped to memory!\n";
+    else
+      LogString += "Buffer '" + BufferName + "' mapped to memory.\n";
+  }
+}
+
+void buffermanager::resetBuffer(const std::string BufferName, int Offset, int Size, const void* Data) {
+  auto BufferIterator = findBuffer(BufferName);
+  if (BufferIterator != BufferArray.end()) {
+    glNamedBufferSubData(BufferIterator->Handle, Offset, Size, Data);
+    LogString += "Buffer '" + BufferName + "' reset.\n";
+  }
+}
+
+void* buffermanager::getBufferAddress(const std::string BufferName) {
+  auto BufferIterator = findBuffer(BufferName);
+  if (BufferIterator != BufferArray.end()) {
+    return BufferIterator->BufferAddress;
   }
 }
 

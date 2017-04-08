@@ -4,6 +4,8 @@
 #include <memory>
 #include <atomic>
 #include <cstdio>
+#include <algorithm>
+#include <fstream>
 
 #include "modules/module.h"
 #include "modules/window/window.h"
@@ -12,7 +14,6 @@
 #include "external/include/stb_image.h"
 
 #include "content/colourArray.h"
-#include "content/blockarray.h"
 #include "classes/program_manager.h"
 #include "classes/buffer_manager.h"
 #include "classes/uniform_manager.h"
@@ -44,11 +45,22 @@ class renderer : public module {
     std::atomic<bool> DataIsReady;
   };
 
+  struct encoderstruct {
+    int DispatchSize[3];
+    int DispatchVolume;
+    int BufferSizeBlocks;
+    int BufferSizeBytes;
+    int Offset;
+    GLsync SyncObject;
+    std::ifstream FileIn;
+  };
+
   void preparePrograms();
   void prepareBuffers();
   void prepareUniforms();
   void prepareSkydome();
   void prepareState();
+  void dispatchEncoders();
 
   void swapBuffers();
   friend void quitCallback(void* Pointer);
@@ -58,6 +70,7 @@ class renderer : public module {
   windowstruct WindowData;
   camerastruct CurrentCameraData;
   camerastruct NewCameraData;
+  encoderstruct EncoderData;
   programmanager ProgramManager;
   buffermanager BufferManager;
   uniformmanager UniformManager;

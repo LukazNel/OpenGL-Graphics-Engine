@@ -1,17 +1,6 @@
 #include "renderer.h"
 
 //      --To be removed--
-static GLfloat indices[] = {
-          2.0f, 0.0f, 0.0f, 0.0f, 2.0f,
-          0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-          1.0f, 0.0f, 0.0f, 9.0f, 0.0f,
-          1.0f, 0.0f, 1.0f, 32.0f, 0.0f,
-          -1.0f, 0.0f, 1.0f, 441.0f, 3.0f,
-          -1.0f, 0.0f, -1.0f, 2.0f, 0.0f,
-          -1.0f, 1.0f, -1.0f, 555.0f, 2.0f,
-          -1.0f, 2.0f, -1.0f, 1002.0f, 0.0f
-};
-
 struct lightstruct {
   float Position[4];
   float Intensity[3];
@@ -20,28 +9,19 @@ struct lightstruct {
 };
 
 lightstruct LightArray[] = {
-  {{50.0, 100.0, 1.0, 0.0}, {0.75, 1.0, 1.0}, 0.2, 0.005},
+  {{50.0, 100.0, 1.0, 0.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
   {{-40.0, 1.0, 1.0, 1.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
   {{5.0, 13.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
   {{-2.0, 3.0, 20.0, 1.0}, {1.0, 1.0, 1.0}, 0.2, 0.005}
 };
 
-//uint64_t BlockArray[][2] {{5771136619255974480, 17592186044417}, {129354334032, 8796093022209}, {65376, 3}, {21568, 1}, {19952, 4194305}, {56448, 8388609}};
 //      -- --
 
-struct block {
-  int Coordinates[3];
-  float Colour[3];
-  unsigned int Level;
-  int Rotation[3];
-  int Offset[3];
-};
-
 struct indirectstruct {
-   GLuint  Count;
-   GLuint  InstanceCount;
-   GLuint  First;
-   GLuint  BaseInstance;
+   GLuint Count;
+   GLuint InstanceCount;
+   GLuint First;
+   GLuint BaseInstance;
 };
 
 unsigned int renderer::BlankVertexArray;
@@ -67,6 +47,13 @@ renderer::renderer() :
   ProgramManager(&quitCallback) {
   WindowData.DataIsReady.store(false);
   ThisPointer = this;
+  EncoderData.DispatchSize[0] = 2;
+  EncoderData.DispatchSize[1] = 1;
+  EncoderData.DispatchSize[2] = 1;
+  EncoderData.DispatchVolume = EncoderData.DispatchSize[0] * EncoderData.DispatchSize[1] * EncoderData.DispatchSize[2];
+  EncoderData.BufferSizeBlocks = 512 * EncoderData.DispatchVolume; // Local dispatch size = 8x8x8 = 512
+  EncoderData.BufferSizeBytes = EncoderData.BufferSizeBlocks * 128 / 8; // 128 bits / 8 bits(one byte)
+  EncoderData.Offset = EncoderData.BufferSizeBlocks;
 }
 
 void renderer::start() {
@@ -79,6 +66,9 @@ void renderer::start() {
 }
 
 void renderer::prepare() {
+  EncoderData.FileIn.open("content/blockarray", std::ios::in | std::ios::binary);
+  if (!EncoderData.FileIn)
+    request("Logger", "log", getName(), std::string("Warning: Input file not found!"));
   // NOTE Acessing Windowdata may be unsafe if data is changed after atomic is true.
   while (!WindowData.DataIsReady.load())
     continue;
@@ -90,7 +80,7 @@ void renderer::prepare() {
   prepareState();
  
   ProgramManager.installProgram("Compute");
-  glDispatchCompute(1, 1, 1); // Max 8 x 8 x 8
+  glDispatchCompute(EncoderData.DispatchSize[0], EncoderData.DispatchSize[1], EncoderData.DispatchSize[2]); // Max 8 x 8 x 8
   glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
   glFinish();
 
@@ -132,34 +122,38 @@ void renderer::prepareBuffers() {
   BufferManager.createBuffers(5, "InputBuffer", "StorageBuffer", "ColourBuffer", "LightBuffer", "DrawBuffer");
 
   GLuint InputBindingPoint = 1;
-  ProgramManager.setBinding("Compute", GL_UNIFORM_BLOCK, "InputBuffer", InputBindingPoint);
-  BufferManager.setBuffer("InputBuffer", GL_UNIFORM_BUFFER, 131072, BlockArray, GL_STATIC_DRAW); // Actual Size: 4194304
+  std::vector<uint64_t> Vector(EncoderData.BufferSizeBlocks * 2, 0);
+  if (EncoderData.FileIn)
+    EncoderData.FileIn.read((char*)Vector.data(), EncoderData.BufferSizeBytes);
+  ProgramManager.setBinding("Compute", GL_SHADER_STORAGE_BLOCK, "InputBuffer", InputBindingPoint);
+  BufferManager.setBuffer("InputBuffer", GL_SHADER_STORAGE_BUFFER, EncoderData.BufferSizeBytes, Vector.data(), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT); // Actual Size: 4194304
+  BufferManager.mapBuffer("InputBuffer", 0, EncoderData.BufferSizeBytes, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
   BufferManager.bindBuffer("InputBuffer", InputBindingPoint);
 
   GLuint StorageBindingPoint = 2;
   ProgramManager.setBinding("Compute", GL_SHADER_STORAGE_BLOCK, "StorageBuffer", StorageBindingPoint);
   ProgramManager.setBinding("Main", GL_SHADER_STORAGE_BLOCK, "StorageBuffer", StorageBindingPoint);
-  BufferManager.setBuffer("StorageBuffer", GL_SHADER_STORAGE_BUFFER, sizeof(block) * 10000, nullptr, GL_DYNAMIC_COPY);
+  BufferManager.setBuffer("StorageBuffer", GL_SHADER_STORAGE_BUFFER, 117440512, nullptr, 0);
   BufferManager.bindBuffer("StorageBuffer", StorageBindingPoint);
 
   GLuint ColourBindingPoint = 3;
   ProgramManager.setBinding("Compute", GL_UNIFORM_BLOCK, "ColourUniform", ColourBindingPoint);
-  BufferManager.setBuffer("ColourBuffer", GL_UNIFORM_BUFFER, sizeof(ColourArray), ColourArray, GL_STATIC_DRAW);
+  BufferManager.setBuffer("ColourBuffer", GL_UNIFORM_BUFFER, sizeof(ColourArray), ColourArray, 0);
   BufferManager.bindBuffer("ColourBuffer", ColourBindingPoint);
 
   GLuint LightBindingPoint = 4;
   ProgramManager.setBinding("Main", GL_UNIFORM_BLOCK, "LightUniform", LightBindingPoint);
-  BufferManager.setBuffer("LightBuffer", GL_UNIFORM_BUFFER, sizeof(LightArray), LightArray, GL_STATIC_DRAW);
+  BufferManager.setBuffer("LightBuffer", GL_UNIFORM_BUFFER, sizeof(LightArray), LightArray, GL_DYNAMIC_STORAGE_BIT);
   BufferManager.bindBuffer("LightBuffer", LightBindingPoint);
 
   GLuint DrawBindingPoint = 5;
   indirectstruct Indirect;
-  Indirect.Count = 360;
+  Indirect.Count = EncoderData.BufferSizeBlocks * 36; //75497472;
   Indirect.InstanceCount = 1;
   Indirect.First = 0;
   Indirect.BaseInstance = 0;
   ProgramManager.setBinding("Compute", GL_SHADER_STORAGE_BLOCK, "DrawBuffer", DrawBindingPoint);
-  BufferManager.setBuffer("DrawBuffer", GL_DRAW_INDIRECT_BUFFER, sizeof(indirectstruct), &Indirect, GL_STREAM_COPY);
+  BufferManager.setBuffer("DrawBuffer", GL_DRAW_INDIRECT_BUFFER, sizeof(indirectstruct), &Indirect, 0);
   BufferManager.bindBuffer("DrawBuffer", GL_SHADER_STORAGE_BUFFER, DrawBindingPoint);
 
   GLuint FrameBufferTexture;
@@ -197,6 +191,8 @@ void renderer::prepareUniforms() {
   CSMatrixUniform = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "SkydomeMatrix");
   UniformManager.createUniformMatrix("CSMatrixSkydome", 4, CSMatrixUniform);
 
+  GLint Offset = ProgramManager.getResourceLocation("Compute", GL_UNIFORM, "Offset");
+  UniformManager.createUniform("Offset", 1, Offset);
 }
 
 void renderer::prepareSkydome() {
@@ -245,6 +241,7 @@ void renderer::prepareState() {
 }
 
 void renderer::draw() {
+  dispatchEncoders();
   if (NewCameraData.DataIsReady.load()) {
     std::copy(NewCameraData.CSMatrix, NewCameraData.CSMatrix + 16, CurrentCameraData.CSMatrix);
     std::copy(NewCameraData.WSMatrix, NewCameraData.WSMatrix + 16, CurrentCameraData.WSMatrix);
@@ -277,7 +274,26 @@ void renderer::draw() {
   swapBuffers();
 }
 
+void renderer::dispatchEncoders() {
+  if (EncoderData.FileIn) {
+    ProgramManager.installProgram("Compute");
+    UniformManager.setUniform("Offset", EncoderData.Offset);
+    char* Pointer = (char*)BufferManager.getBufferAddress("InputBuffer");
+    if (EncoderData.SyncObject) {
+      GLenum waitReturn = GL_UNSIGNALED;
+      while (waitReturn != GL_ALREADY_SIGNALED && waitReturn != GL_CONDITION_SATISFIED)
+        waitReturn = glClientWaitSync(EncoderData.SyncObject, GL_SYNC_FLUSH_COMMANDS_BIT, 1);
+      EncoderData.FileIn.read(Pointer, EncoderData.BufferSizeBytes);
+      glDispatchCompute(EncoderData.DispatchSize[0], EncoderData.DispatchSize[1], EncoderData.DispatchSize[2]); // Max 8 x 8 x 8
+      EncoderData.Offset += EncoderData.BufferSizeBlocks;
+    }
+    glDeleteSync(EncoderData.SyncObject);
+    EncoderData.SyncObject = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+  }
+}
+
 void renderer::cleanUp() {
+  EncoderData.FileIn.close();
   BufferManager.cleanUp();
   ProgramManager.cleanUp();
 }

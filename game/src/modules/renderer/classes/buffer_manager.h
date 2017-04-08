@@ -36,11 +36,14 @@ class buffermanager {
       createFrameBufferHelper(FrameBuffers, Amount, FrameBufferName, Arguments...);
     }
 
-  void setBuffer(const std::string BufferName, const GLenum BufferType, int Size, const void* Data, GLenum Usage);
+  void setBuffer(const std::string BufferName, const GLenum BufferType, int Size, const void* Data, GLbitfield Usage);
   void bindBuffer(const std::string BufferName);
   void bindBuffer(const std::string BufferName, GLuint BindingPoint);
   void bindBuffer(const std::string BufferName, GLenum CustomType, GLuint BindingPoint);
   void getBuffer(const std::string BufferName, int Offset, int Size, void* Data);
+  void mapBuffer(const std::string BufferName, int Offset, int Size, const GLbitfield Access);
+  void resetBuffer(const std::string BufferName, int Offset, int Size, const void* Data);
+  void*getBufferAddress(const std::string BufferName);
 
   void setRenderBuffer(const std::string RenderBufferName, int Samples, GLenum InternalFormat, int Width, int Height);
   void setRenderBuffer(const std::string RenderBufferName, GLenum InternalFormat, int Width, int Height);
@@ -59,6 +62,7 @@ class buffermanager {
   struct buffer {
     std::string Name;
     GLenum Type;
+    void* BufferAddress;
     GLuint Handle;
   };
   struct renderbuffer {

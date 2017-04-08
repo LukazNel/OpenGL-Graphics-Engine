@@ -38,8 +38,6 @@ vec3 NormalArray[6] = {
   {0, -1, 0} //Bottom
 };
 
-vec3 Positions = vec3(0, -2, 2);
-
 void main() {
   int Index = gl_VertexID / 36;
   int VertexID = gl_VertexID  % 36;

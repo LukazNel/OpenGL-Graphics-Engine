@@ -42,19 +42,13 @@ int findColour(std::vector<unsigned char> InputColour);
 
 int main(int argc, char* argv[])  {
   std::string FileName;
-  if (argc == 1) {
+  if (argc != 2) {
     std::cout << "Usage: convert-pnx [.pnx file]\n";
     std::exit(EXIT_FAILURE);
-  } else if (argc == 2)
-    FileName = argv[1];
+  } else FileName = argv[1];
 
 
-  std::fstream FileOut("blockarray.h", std::ios::out | std::ios::trunc);
-
-  FileOut << "#ifndef __blockarray_h_" << std::endl
-          << "#define __blockarray_h_" << std::endl << std::endl
-          << "// Convertex from " << FileName << std::endl
-          << "static const uint64_t BlockArray[][2] {" << std::endl;
+  std::fstream FileOut("blockarray", std::ios::out | std::ios::trunc | std::ios::binary);
 
   std::ifstream File(FileName, std::ios::binary);
   voxelobject VoxelObject;
@@ -124,7 +118,7 @@ int main(int argc, char* argv[])  {
             block Block {{x, 1 - y + Layer.Corner[1], 1 - z + Layer.Corner[2]}, VoxelObject.Images[ImageID].ColourID[z][y], 1, {0, 0, 0}, {0, 0, 0}};
             uint64_t Answer[2] = {0, 0};
             encode(Block, Answer);
-            FileOut << "{" << Answer[0] << ", " << Answer[1] << "}, ";
+            FileOut.write((char*)Answer, 16);
           }
         }
       }
@@ -132,7 +126,6 @@ int main(int argc, char* argv[])  {
     VoxelObject.Layers.push_back(Layer);
   }
   File.close();
-  FileOut << std::endl << "};" << std::endl << std::endl << "#endif";
   FileOut.close();
   return 0;
 }

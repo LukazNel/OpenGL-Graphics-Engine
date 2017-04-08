@@ -13,12 +13,12 @@ struct block {
   vec3 Offset;
 };
 
-layout(std140) uniform InputBuffer {
-  u64vec2 InputArray[194]; // (8x8x8)(8x8x8)
+layout(std140) buffer InputBuffer {
+  u64vec2 InputArray[]; // (8x8x8)(8x8x8)
 } BufferIn;
 
 layout(std430) buffer StorageBuffer {
-  block BlockArray[1024]; // (60MB)
+  block BlockArray[]; // (60MB)
 } BufferOut;
 
 layout(std140) uniform ColourUniform {
@@ -31,6 +31,8 @@ layout(std430) buffer DrawBuffer {
   uint First;
   uint BaseInstance;
 } Draw;
+
+uniform int Offset;
 
 // method to seperate bits from a given integer 3 positions apart
 uint64_t splitBy3(unsigned int a) {
@@ -76,7 +78,7 @@ vec4 qMultiply(vec4 Q1, vec4 Q2) {
 void main(void) {
   block DecodedBlock;
   vec3 GlobalWorkGroupSize = gl_WorkGroupSize * gl_NumWorkGroups;
-  const int GlobalInvocationIndex = (int)(gl_GlobalInvocationID.z * GlobalWorkGroupSize.x *GlobalWorkGroupSize.y + gl_LocalInvocationID.y * GlobalWorkGroupSize.x + gl_LocalInvocationID.x);
+  const int GlobalInvocationIndex = (int)(gl_GlobalInvocationID.z * GlobalWorkGroupSize.x * GlobalWorkGroupSize.y + gl_GlobalInvocationID.y * GlobalWorkGroupSize.x + gl_GlobalInvocationID.x);
   uint64_t Coordinates = BufferIn.InputArray[GlobalInvocationIndex].x;
   uint64_t Info = BufferIn.InputArray[GlobalInvocationIndex].y;
 
@@ -102,7 +104,7 @@ void main(void) {
     //Coordinates >>= 21;
     Info >>= 1;
 
-    uint64_t MortonIndex = mortonEncode_magicbits((uint)(DecodedBlock.Coordinates.x * 2), (uint)(DecodedBlock.Coordinates.y * 2), (uint)(DecodedBlock.Coordinates.z * 2)); // Times two because negative is removed.
+    uint64_t MortonIndex = mortonEncode_magicbits(((uint)DecodedBlock.Coordinates.x * 2), ((uint)DecodedBlock.Coordinates.y * 2), ((uint)DecodedBlock.Coordinates.z * 2)); // Times two because negative is removed.
 
     DecodedBlock.Colour = ColourArray[(uint)(Info & 0x3FF)];
     Info >>= 10;
@@ -155,9 +157,10 @@ void main(void) {
     uint Morton1 = uint(MortonIndex >> 32);
     uint Morton2 = uint(MortonIndex & (0xFFFFFF << 32));
     //BufferOut.BlockArray[(Morton1 << 32) | Morton2] = DecodedBlock;
-    BufferOut.BlockArray[GlobalInvocationIndex] = DecodedBlock;
+    BufferOut.BlockArray[GlobalInvocationIndex + Offset] = DecodedBlock;
     //atomicAdd(Draw.Count, 36);
-    atomicMax(Draw.Count, GlobalInvocationIndex * 36);
+    if (gl_LocalInvocationIndex == 1)
+      atomicMax(Draw.Count, (GlobalInvocationIndex + Offset) * 36);
     //atomicExchange(Draw.count, 700);
     //Draw.Count += 36;
     //Draw.Count = 700;

@@ -1,8 +1,8 @@
 #include "client.h"
 
 client::client() {
-  CameraData.WSMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.03125));
-  CameraData.Position = {0, 0, 2};
+  CameraData.WSMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.0625)); // or 0.03125
+  CameraData.Position = {0, 10, 0};
   CameraData.Front = {0, 0, -1};
   CameraData.Up = {0, 1, 0};
   ClientState.LastMouseX = 320;
@@ -38,6 +38,8 @@ void client::update() {
   }
   WindowData.DeltaTime = (WindowData.DeltaTime + NewDeltaTime) / 2;
   updatePosition();
+  if (CameraData.Position.y < 2)
+    CameraData.Position.y = 2;
   CameraData.CameraMatrix = glm::lookAt(CameraData.Position, CameraData.Position + CameraData.Front, CameraData.Up);
   CameraData.SkydomeMatrix = CameraData.PerspectiveMatrix * glm::lookAt(glm::vec3(CameraData.Position.x, CameraData.Position.y + 0.0, CameraData.Position.z), CameraData.Position + glm::vec3(CameraData.Front.x, -CameraData.Front.y, -CameraData.Front.z), CameraData.Up);
   
@@ -85,10 +87,11 @@ void client::setMouse(int MouseX, int MouseY) {
   ClientState.Yaw += MouseOffsetX;
   ClientState.Pitch += MouseOffsetY;
 
-  if (ClientState.Pitch > 89)
-    ClientState.Pitch = 89;
-  else if (ClientState.Pitch < -89)
-    ClientState.Pitch = -89;
+  int Limit = 80;
+  if (ClientState.Pitch > Limit)
+    ClientState.Pitch = Limit;
+  else if (ClientState.Pitch < -Limit)
+    ClientState.Pitch = -Limit;
 }
 
 void client::shutDown() {
@@ -98,13 +101,13 @@ client::~client() {
 }
 
 void client::updatePosition() {
-  glm::vec3 Direction;
-  Direction.x = cos(glm::radians(ClientState.Pitch)) * cos(glm::radians(ClientState.Yaw));
-  Direction.y = sin(glm::radians(ClientState.Pitch));
-  Direction.z = cos(glm::radians(ClientState.Pitch)) * sin(glm::radians(ClientState.Yaw));
-  CameraData.Front = glm::normalize(Direction);
+  glm::vec3 Front;
+  Front.x = cos(glm::radians(ClientState.Pitch)) * cos(glm::radians(ClientState.Yaw));
+  Front.y = sin(glm::radians(ClientState.Pitch));
+  Front.z = cos(glm::radians(ClientState.Pitch)) * sin(glm::radians(ClientState.Yaw));
+  CameraData.Front = glm::normalize(Front);
 
-  float CameraSpeed = 0.05; //* WindowData.DeltaTime;
+  float CameraSpeed = 0.5; //* WindowData.DeltaTime;
   //Else-if because you can't move frowards and backwards simoultaneously!
   if (ClientState.Keyboard[0])
     CameraData.Position += glm::vec3(CameraData.Front.x * CameraSpeed, 0, CameraData.Front.z * CameraSpeed);
