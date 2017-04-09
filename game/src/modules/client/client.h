@@ -10,12 +10,13 @@
 #include "external/include/glm/glm.hpp"
 #include "external/include/glm/gtc/type_ptr.hpp"
 #include "external/include/glm/gtc/matrix_transform.hpp"
+#include "external/include/glm/gtx/transform.hpp"
 
 class client : public module {
  public:
   client();
   virtual void start();
-  void setCameraPointers(float* CSMatrix, float* WSMatrix, float* SkydomeMatrix, float* Position, std::atomic<bool>* DataIsReady);
+  void setCameraPointers(float* CSMatrix, float* WSMatrix, float* Position, float* SkydomeMatrix, float* StarMatrix, float* SunPosition, float* Weather, float* Time, std::atomic<bool>* DataIsReady);
   void update();
   void setState(std::string Type, bool State);
   void setMouse(int MouseX, int MouseY);
@@ -25,19 +26,31 @@ private:
   struct rendererstruct {
     float* CSMatrix;
     float* WSMatrix;
-    float* SkydomeMatrix;
     float* Position;
+
+    float* SkydomeMatrix;
+    float* StarMatrix;
+    float* SunPosition;
+    float* Weather;
+    float* Time;
     std::atomic<bool>* DataIsReady;
   };
   struct camerastruct {
-    glm::vec3 Position;
     glm::vec3 Front;
     glm::vec3 Up;
     glm::mat4 PerspectiveMatrix;
     glm::mat4 CameraMatrix;
+    glm::vec3 SunSpherical;
+
     glm::mat4 WSMatrix;
     glm::mat4 CSMatrix;
+    glm::vec3 Position;
+
     glm::mat4 SkydomeMatrix;
+    glm::mat4 StarMatrix;
+    glm::vec3 SunPosition;
+    float Weather;
+    float Time;
   };
   struct windowstruct {
     int WindowWidth;

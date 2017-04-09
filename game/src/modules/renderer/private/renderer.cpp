@@ -5,11 +5,11 @@ struct lightstruct {
   float Position[4];
   float Intensity[3];
   float Attenuation;
-  float AmbientCoefficent;
+  float AmbientCoefficient;
 };
 
 lightstruct LightArray[] = {
-  {{50.0, 100.0, 1.0, 0.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
+  {{50.0, 100.0, 1.0, 1.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
   {{-40.0, 1.0, 1.0, 1.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
   {{5.0, 13.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, 0.2, 0.005},
   {{-2.0, 3.0, 20.0, 1.0}, {1.0, 1.0, 1.0}, 0.2, 0.005}
@@ -62,7 +62,7 @@ void renderer::start() {
   addFunction("draw", &renderer::draw);
   addFunction("cleanUp", &renderer::cleanUp);
   request("Window", "getWindowData", &WindowData.ObjectPointer, &WindowData.SwapBuffers, &WindowData.WindowWidth, &WindowData.WindowHeight, &WindowData.DataIsReady);
-  request("Client", "setCameraPointers", (float*)NewCameraData.CSMatrix, (float*)NewCameraData.WSMatrix, (float*)NewCameraData.SkydomeMatrix, (float*)NewCameraData.Position, &NewCameraData.DataIsReady);
+  request("Client", "setCameraPointers", (float*)NewCameraData.CSMatrix, (float*)NewCameraData.WSMatrix, (float*)NewCameraData.Position, (float*)NewCameraData.SkydomeMatrix, (float*)NewCameraData.StarMatrix, (float*)NewCameraData.SunPosition, (float*)&NewCameraData.Weather, (float*)&NewCameraData.Time, &NewCameraData.DataIsReady);
 }
 
 void renderer::prepare() {
@@ -112,9 +112,9 @@ void renderer::preparePrograms() {
   ProgramManager.createShader("intermediate/skydome.vert.glsl", GL_VERTEX_SHADER);
   ProgramManager.createShader("intermediate/skydome.tesc.glsl", GL_TESS_CONTROL_SHADER);
   ProgramManager.createShader("intermediate/skydome.tese.glsl", GL_TESS_EVALUATION_SHADER);
-  ProgramManager.createShader("intermediate/skydome.frag.glsl", GL_FRAGMENT_SHADER);
+  ProgramManager.createShader("intermediate/skydome_fshader.glsl", GL_FRAGMENT_SHADER);
   ProgramManager.createProgram("Skydome");
-  ProgramManager.addShader("Skydome", "intermediate/skydome.vert.glsl", "intermediate/skydome.tesc.glsl", "intermediate/skydome.tese.glsl", "intermediate/skydome.frag.glsl");
+  ProgramManager.addShader("Skydome", "intermediate/skydome.vert.glsl", "intermediate/skydome.tesc.glsl", "intermediate/skydome.tese.glsl", "intermediate/skydome_fshader.glsl");
   ProgramManager.linkProgram("Skydome");
 }
 
@@ -173,37 +173,53 @@ void renderer::prepareBuffers() {
 }
 
 void renderer::prepareUniforms() {
-  GLint CSMatrixUniform = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "CSMatrix");
-  UniformManager.createUniformMatrix("CSMatrixMain", 4, CSMatrixUniform);
+  GLint Location;
+  Location = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "CSMatrix");
+  UniformManager.createUniformMatrix("CSMatrixMain", 4, Location);
 
-  GLint WSMatrixUniform = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "WSMatrix");
-  UniformManager.createUniformMatrix("WSMatrixMain", 4, WSMatrixUniform);
+  Location = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "WSMatrix");
+  UniformManager.createUniformMatrix("WSMatrixMain", 4, Location);
   
-  GLint NumLights = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "NumLights");
-  UniformManager.createUniform("NumLights", 1, NumLights);
+  Location = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "NumLights");
+  UniformManager.createUniform("NumLights", 1, Location);
 
-  GLint CameraPosition = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "CameraPosition");
-  UniformManager.createUniform("CameraPosition", 3, CameraPosition);
+  Location = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "CameraPosition");
+  UniformManager.createUniform("CameraPosition", 3, Location);
+
+  Location = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "SunPosition");
+  UniformManager.createUniform("SunPositionMain", 3, Location);
 
   ProgramManager.installProgram("Main");
   UniformManager.setUniform("NumLights", 2);
   
-  CSMatrixUniform = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "SkydomeMatrix");
-  UniformManager.createUniformMatrix("CSMatrixSkydome", 4, CSMatrixUniform);
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "SkydomeMatrix");
+  UniformManager.createUniformMatrix("SkydomeMatrix", 4, Location);
 
-  GLint Offset = ProgramManager.getResourceLocation("Compute", GL_UNIFORM, "Offset");
-  UniformManager.createUniform("Offset", 1, Offset);
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "StarMatrix");
+  UniformManager.createUniformMatrix("StarMatrix", 4, Location);
+
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "SunPosition");
+  UniformManager.createUniform("SunPositionSkydome", 3, Location);
+
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "weather");
+  UniformManager.createUniform("Weather", 1, Location);
+
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "time");
+  UniformManager.createUniform("Time", 1, Location);
+
+  Location = ProgramManager.getResourceLocation("Compute", GL_UNIFORM, "Offset");
+  UniformManager.createUniform("Offset", 1, Location);
 }
 
 void renderer::prepareSkydome() {
   int Width, Height, Channels;
   unsigned char* Image;
  
-  GLuint SkydomeTextures[2];
-  glCreateTextures(GL_TEXTURE_2D, 2, SkydomeTextures);
+  GLuint SkydomeTextures[6];
+  glCreateTextures(GL_TEXTURE_2D, 6, SkydomeTextures);
 
   glBindTextureUnit(1, SkydomeTextures[0]);
-  Image = stbi_load(std::string("content/skydome/sky.png").c_str(), &Width, &Height, &Channels, 4);
+  Image = stbi_load(std::string("content/skydome/tint.tga").c_str(), &Width, &Height, &Channels, 4);
   glTextureStorage2D(SkydomeTextures[0], 1, GL_RGBA8, Width, Height);
   glTextureSubImage2D(SkydomeTextures[0], 0, 0, 0, Width, Height, GL_RGBA, GL_UNSIGNED_BYTE, Image);
   stbi_image_free(Image);
@@ -213,7 +229,7 @@ void renderer::prepareSkydome() {
   //glTextureParameteri(SkydomeTextures[0], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
   glBindTextureUnit(2, SkydomeTextures[1]);
-  Image = stbi_load(std::string("content/skydome/glow.png").c_str(), &Width, &Height, &Channels, 4);
+  Image = stbi_load(std::string("content/skydome/tint2.tga").c_str(), &Width, &Height, &Channels, 4);
   glTextureStorage2D(SkydomeTextures[1], 1, GL_RGBA8, Width, Height);
   glTextureSubImage2D(SkydomeTextures[1], 0, 0, 0, Width, Height, GL_RGBA, GL_UNSIGNED_BYTE, Image);
   stbi_image_free(Image);
@@ -222,11 +238,60 @@ void renderer::prepareSkydome() {
   glTextureParameteri(SkydomeTextures[1], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTextureParameteri(SkydomeTextures[1], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-  GLint Sky = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "Sky");
-  GLint Glow = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "Glow");
+  glBindTextureUnit(3, SkydomeTextures[2]);
+  Image = stbi_load(std::string("content/skydome/sun.tga").c_str(), &Width, &Height, &Channels, 4);
+  glTextureStorage2D(SkydomeTextures[2], 1, GL_RGBA8, Width, Height);
+  glTextureSubImage2D(SkydomeTextures[2], 0, 0, 0, Width, Height, GL_RGBA, GL_UNSIGNED_BYTE, Image);
+  stbi_image_free(Image);
+  glTextureParameteri(SkydomeTextures[2], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTextureParameteri(SkydomeTextures[2], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTextureParameteri(SkydomeTextures[2], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTextureParameteri(SkydomeTextures[2], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  glBindTextureUnit(4, SkydomeTextures[3]);
+  Image = stbi_load(std::string("content/skydome/moon.tga").c_str(), &Width, &Height, &Channels, 4);
+  glTextureStorage2D(SkydomeTextures[3], 1, GL_RGBA8, Width, Height);
+  glTextureSubImage2D(SkydomeTextures[3], 0, 0, 0, Width, Height, GL_RGBA, GL_UNSIGNED_BYTE, Image);
+  stbi_image_free(Image);
+  glTextureParameteri(SkydomeTextures[3], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTextureParameteri(SkydomeTextures[3], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTextureParameteri(SkydomeTextures[3], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTextureParameteri(SkydomeTextures[3], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  glBindTextureUnit(5, SkydomeTextures[4]);
+  Image = stbi_load(std::string("content/skydome/clouds1.tga").c_str(), &Width, &Height, &Channels, 4);
+  glTextureStorage2D(SkydomeTextures[4], 1, GL_RGBA8, Width, Height);
+  glTextureSubImage2D(SkydomeTextures[4], 0, 0, 0, Width, Height, GL_RGBA, GL_UNSIGNED_BYTE, Image);
+  stbi_image_free(Image);
+  glTextureParameteri(SkydomeTextures[4], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTextureParameteri(SkydomeTextures[4], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTextureParameteri(SkydomeTextures[4], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTextureParameteri(SkydomeTextures[4], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  glBindTextureUnit(6, SkydomeTextures[5]);
+  Image = stbi_load(std::string("content/skydome/clouds2.tga").c_str(), &Width, &Height, &Channels, 4);
+  glTextureStorage2D(SkydomeTextures[5], 1, GL_RGBA8, Width, Height);
+  glTextureSubImage2D(SkydomeTextures[5], 0, 0, 0, Width, Height, GL_RGBA, GL_UNSIGNED_BYTE, Image);
+  stbi_image_free(Image);
+  glTextureParameteri(SkydomeTextures[5], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTextureParameteri(SkydomeTextures[5], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTextureParameteri(SkydomeTextures[5], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTextureParameteri(SkydomeTextures[5], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
   ProgramManager.installProgram("Skydome");
-  glUniform1i(Sky, 1);
-  glUniform1i(Glow, 2);
+  GLint Location;
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "tint");
+  glUniform1i(Location, 1);
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "tint2");
+  glUniform1i(Location, 2);
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "sun");
+  glUniform1i(Location, 3);
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "moon");
+  glUniform1i(Location, 4);
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "clouds1");
+  glUniform1i(Location, 5);
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "clouds2");
+  glUniform1i(Location, 6);
   //glBindTexture(GL_TEXTURE_CUBE_MAP, 0);*/
 }
 
@@ -245,8 +310,12 @@ void renderer::draw() {
   if (NewCameraData.DataIsReady.load()) {
     std::copy(NewCameraData.CSMatrix, NewCameraData.CSMatrix + 16, CurrentCameraData.CSMatrix);
     std::copy(NewCameraData.WSMatrix, NewCameraData.WSMatrix + 16, CurrentCameraData.WSMatrix);
-    std::copy(NewCameraData.SkydomeMatrix, NewCameraData.SkydomeMatrix + 16, CurrentCameraData.SkydomeMatrix);
     std::copy(NewCameraData.Position, NewCameraData.Position + 3, CurrentCameraData.Position);
+    std::copy(NewCameraData.SkydomeMatrix, NewCameraData.SkydomeMatrix + 16, CurrentCameraData.SkydomeMatrix);
+    std::copy(NewCameraData.StarMatrix, NewCameraData.StarMatrix + 16, CurrentCameraData.StarMatrix);
+    std::copy(NewCameraData.SunPosition, NewCameraData.SunPosition + 3, CurrentCameraData.SunPosition);
+    CurrentCameraData.Weather = NewCameraData.Weather;
+    CurrentCameraData.Time = NewCameraData.Time;
     NewCameraData.DataIsReady.store(false); // Handshaking: State says true and Renderer changes data, Renderer says false and State changed data.
   }
 
@@ -258,13 +327,18 @@ void renderer::draw() {
   UniformManager.setUniform("CSMatrixMain", (GLfloat*)(CurrentCameraData.CSMatrix));
   UniformManager.setUniform("WSMatrixMain", (GLfloat*)(CurrentCameraData.WSMatrix));
   UniformManager.setUniform("CameraPosition", (GLfloat*)(CurrentCameraData.Position));
+  UniformManager.setUniform("SunPositionMain", (GLfloat*)(CurrentCameraData.SunPosition));
   glDrawArraysIndirect(GL_TRIANGLES, 0); //36
   //glDrawArraysInstancedBaseInstance(GL_TRIANGLES, 1110, 6876, 1, 0);
   //glDrawArrays(GL_TRIANGLES, 0, 7000);
 
   glDepthFunc(GL_LEQUAL);
   ProgramManager.installProgram("Skydome");
-  UniformManager.setUniform("CSMatrixSkydome", (GLfloat*)(CurrentCameraData.SkydomeMatrix));
+  UniformManager.setUniform("SkydomeMatrix", (GLfloat*)(CurrentCameraData.SkydomeMatrix));
+  UniformManager.setUniform("StarMatrix", (GLfloat*)(CurrentCameraData.StarMatrix));
+  UniformManager.setUniform("SunPositionSkydome", (GLfloat*)(CurrentCameraData.SunPosition));
+  UniformManager.setUniform("Weather", CurrentCameraData.Weather);
+  UniformManager.setUniform("Time", CurrentCameraData.Time);
   glDrawArrays(GL_PATCHES, 0, 12);
 
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);

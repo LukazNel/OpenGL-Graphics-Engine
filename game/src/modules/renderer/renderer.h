@@ -40,8 +40,13 @@ class renderer : public module {
   struct camerastruct {
     float CSMatrix[16];
     float WSMatrix[16];
-    float SkydomeMatrix[16];
     float Position[3];
+    
+    float SkydomeMatrix[16];
+    float StarMatrix[16];
+    float SunPosition[3];
+    float Weather;
+    float Time;
     std::atomic<bool> DataIsReady;
   };
 

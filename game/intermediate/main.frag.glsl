@@ -2,6 +2,7 @@
 
 uniform int NumLights;
 uniform vec3 CameraPosition;
+uniform vec3 SunPosition;
 
 #define MAX_LIGHTS 10
 struct light {
@@ -57,12 +58,19 @@ void main() {
     vec3 SurfaceToCamera = normalize(CameraPosition - WSPosition);
 
     //combine color from all the lights
+    light Sun = {vec4(SunPosition, 1), vec3(1), 0.2, 0.005};
+    if (SunPosition.y < 0) {
+      Sun.Position.y *= -1;
+      Sun.Intensity = vec3(0.7529, 0.7529, 0.96);
+      Sun.AmbientCoefficient = 0.000005;
+    }
     vec3 LinearColour = vec3(0);
-    if (Level != 3)
+    if (Level != 3) {
       for(int i = 0; i < NumLights; ++i) {
         LinearColour += applyLight(LightArray[i], WSNormal, WSPosition, SurfaceToCamera);
       }
-    else LinearColour = Colour;
+      LinearColour += applyLight(Sun, WSNormal, WSPosition, SurfaceToCamera);
+    }  else LinearColour = Colour;
 
     //final color (after gamma correction)
     vec3 Gamma = vec3(1.0/2.2);

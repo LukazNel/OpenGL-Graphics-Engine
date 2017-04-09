@@ -10,8 +10,8 @@ uniform sampler2D sun;//sun texture (radius x time)
 uniform sampler2D moon;//moon texture (circular)
 uniform sampler2D clouds1;//light clouds texture (spherical UV projection)
 uniform sampler2D clouds2;//heavy clouds texture (spherical UV projection)
-float weather = 0.7;//mixing factor (0.5 to 1.0)
-float time = 25200;
+uniform float weather;//mixing factor (0.5 to 1.0)
+uniform float time;
 //---------OUT------------
 out vec3 color;
 
