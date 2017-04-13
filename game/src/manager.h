@@ -37,6 +37,7 @@ class manager {
 
   std::vector<modulestruct> ModuleArray;
   std::queue<std::unique_ptr<module::eventbase>> EventQueue;
+  std::queue<std::unique_ptr<module::eventbase>> ImmediateQueue;
   threadmanager ThreadManager;
 
   bool AllowAddModule;

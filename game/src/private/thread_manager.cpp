@@ -7,7 +7,7 @@ threadmanager::threadmanager() : StopThreads(false) {
       while(true) {{
         std::unique_lock<std::mutex> Lock(MT_Mutex);
         MT_Condition.wait(Lock, [&]{ return StopThreads.load() || MT_EventPointer != nullptr; });
-        if(StopThreads.load() /*&& MT_EventPointer == nullptr*/)
+        if(StopThreads.load() && MT_EventPointer == nullptr)
           return;
         Event = std::move(MT_EventPointer);
         Module = MT_ModulePointer;

@@ -82,7 +82,16 @@ class module {
       //return std::move(NextEvent);
     //} else return nullptr;
   }
-  virtual void shutDown() =0;
+  std::unique_ptr<eventbase> getImmediateRequest() {
+    std::unique_ptr<eventbase> NextEvent;
+    if (ImmediateQueue.try_dequeue(NextEvent))
+      return NextEvent;
+    else return nullptr;
+  }
+  void preShutDown() {
+    Condition.notify_all();
+    shutDown();
+  }
   virtual ~module() {
   }
  protected:
@@ -102,11 +111,16 @@ class module {
     void immediateRequest(const std::string ModuleName, const std::string FunctionName, T* Value, args... Arguments) {
       std::promise<T> Promise;
       std::future<T> Future = Promise.get_future();
-      request(ModuleName, FunctionName, &Promise, Arguments...);
+      immediateRequestHelper(ModuleName, FunctionName, &Promise, Arguments...);
       std::unique_lock<std::mutex> Lock(Mutex);
       setAvailable();
       *Value = Future.get();
       Condition.wait(Lock, [&]{return Available.compare_exchange_strong(True, False);});
+    }
+  template<typename ...args>
+    void immediateRequestHelper(const std::string ModuleName, const std::string FunctionName, args... Arguments) {
+      std::unique_ptr<eventbase> EventVar(new event<args...>(ModuleName, FunctionName, false, Arguments...));
+      ImmediateQueue.enqueue(std::move(EventVar));
     }
   template<typename modulechild>
     void setName(std::string Name, modulechild* Pointer) {
@@ -124,6 +138,7 @@ class module {
   void setUnavailable() {
     Available.store(false);
   }
+  virtual void shutDown() =0;
  private:
   class functionbase {
    public:
@@ -182,6 +197,7 @@ class module {
   //std::queue<std::unique_ptr<eventbase>> EventQueue;
   //moodycamel::ConcurrentQueue<std::unique_ptr<eventbase>> EventQueue;
   moodycamel::ReaderWriterQueue<std::unique_ptr<eventbase>> EventQueue;
+  moodycamel::ReaderWriterQueue<std::unique_ptr<eventbase>> ImmediateQueue;
   std::vector<std::unique_ptr<functionbase>> FunctionArray;
 };
 
