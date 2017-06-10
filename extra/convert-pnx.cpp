@@ -109,16 +109,20 @@ int main(int argc, char* argv[])  {
     for (int i = 0; i < 3; i++)
       File.read((char*)&Layer.Corner[i], sizeof(int));
 
+    int Level = 0;
     for (int x = Layer.Size[0] + Layer.Corner[0] - 1; x > Layer.Corner[0] - 1; x--) {
       int ImageID = 0;
       File.read((char*)&ImageID, sizeof(int));
       for (int z = 0; z < Layer.Size[2]; z++) {
         for (int y = 0; y < Layer.Size[1]; y++) {
           if (VoxelObject.Images[ImageID].ColourID.at(z).at(y) != -1) {
-            block Block {{x, 1 - y + Layer.Corner[1], 1 - z + Layer.Corner[2]}, VoxelObject.Images[ImageID].ColourID[z][y], 1, {0, 0, 0}, {0, 0, 0}};
+            block Block {{x, 1 - y + Layer.Corner[1], 1 - z + Layer.Corner[2]}, 
+VoxelObject.Images[ImageID].ColourID[z][y], Level++, {0, 0, 0}, {0, 0, 0}};
             uint64_t Answer[2] = {0, 0};
             encode(Block, Answer);
             FileOut.write((char*)Answer, 16);
+            if (Level > 2)
+             Level = 0;
           }
         }
       }

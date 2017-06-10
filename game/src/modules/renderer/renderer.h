@@ -11,7 +11,6 @@
 #include "modules/window/window.h"
 
 #include "external/include/glad.h"
-#include "external/include/stb_image.h"
 
 #include "content/colourArray.h"
 #include "classes/program_manager.h"
@@ -61,9 +60,9 @@ class renderer : public module {
   };
 
   void preparePrograms();
+  void prepareTextures();
   void prepareBuffers();
   void prepareUniforms();
-  void prepareSkydome();
   void prepareState();
   void dispatchEncoders();
 

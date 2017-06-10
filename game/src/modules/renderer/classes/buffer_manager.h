@@ -20,6 +20,15 @@ class buffermanager {
       createBufferHelper(Buffers, Amount, BufferName, Arguments...);
     }
 
+  void setBuffer(const std::string BufferName, const GLenum BufferType, int Size, const void* Data, GLbitfield Usage);
+  void bindBuffer(const std::string BufferName);
+  void bindBuffer(const std::string BufferName, GLuint BindingPoint);
+  void bindBuffer(const std::string BufferName, GLenum CustomType, GLuint BindingPoint);
+  void getBuffer(const std::string BufferName, int Offset, int Size, void* Data);
+  void mapBuffer(const std::string BufferName, int Offset, int Size, const GLbitfield Access);
+  void resetBuffer(const std::string BufferName, int Offset, int Size, const void* Data);
+  void* getBufferAddress(const std::string BufferName);
+
   template<typename ...args>
     void createRenderBuffers(int Amount, const std::string RenderBufferName, args... Arguments) {
       GLuint RenderBuffers[Amount];
@@ -28,6 +37,10 @@ class buffermanager {
       createRenderBufferHelper(RenderBuffers, Amount, RenderBufferName, Arguments...);
     }
 
+  void setRenderBuffer(const std::string RenderBufferName, int Samples, GLenum InternalFormat, int Width, int Height);
+  void setRenderBuffer(const std::string RenderBufferName, GLenum InternalFormat, int Width, int Height);
+  void bindRenderBuffer(const std::string RenderBufferName);
+
   template<typename ...args>
     void createFrameBuffers(int Amount, const std::string FrameBufferName, args... Arguments) {
       GLuint FrameBuffers[Amount];
@@ -35,19 +48,6 @@ class buffermanager {
       glCreateFramebuffers(Amount, FrameBuffers);
       createFrameBufferHelper(FrameBuffers, Amount, FrameBufferName, Arguments...);
     }
-
-  void setBuffer(const std::string BufferName, const GLenum BufferType, int Size, const void* Data, GLbitfield Usage);
-  void bindBuffer(const std::string BufferName);
-  void bindBuffer(const std::string BufferName, GLuint BindingPoint);
-  void bindBuffer(const std::string BufferName, GLenum CustomType, GLuint BindingPoint);
-  void getBuffer(const std::string BufferName, int Offset, int Size, void* Data);
-  void mapBuffer(const std::string BufferName, int Offset, int Size, const GLbitfield Access);
-  void resetBuffer(const std::string BufferName, int Offset, int Size, const void* Data);
-  void*getBufferAddress(const std::string BufferName);
-
-  void setRenderBuffer(const std::string RenderBufferName, int Samples, GLenum InternalFormat, int Width, int Height);
-  void setRenderBuffer(const std::string RenderBufferName, GLenum InternalFormat, int Width, int Height);
-  void bindRenderBuffer(const std::string RenderBufferName);
 
   void setFrameBuffer(const std::string FrameBufferName, const std::string RenderBufferName);
   void setFrameBuffer(const std::string FrameBufferName, GLenum Attachment, GLuint TextureHandle, int Level);

@@ -5,22 +5,22 @@ uniformmanager::uniformmanager() {
 }
 
 void uniformmanager::createUniform(const std::string UniformName, int Size, GLuint UniformLocation) {
-  uniformstruct UniformStructVar;
-  UniformStructVar.Name = UniformName;
-  UniformStructVar.Type = UNIFORM;
-  UniformStructVar.Size = Size;
-  UniformStructVar.Handle = UniformLocation;
-  UniformArray.push_back(UniformStructVar);
+  uniform UniformVar;
+  UniformVar.Name = UniformName;
+  UniformVar.Type = UNIFORM;
+  UniformVar.Size = Size;
+  UniformVar.Handle = UniformLocation;
+  UniformArray.push_back(UniformVar);
   LogString += "Uniform '" + UniformName + "' successfully created.\n";
 }
 
 void uniformmanager::createUniformMatrix(const std::string UniformName, int Size, GLuint UniformLocation) {
-  uniformstruct UniformStructVar;
-  UniformStructVar.Name = UniformName;
-  UniformStructVar.Type = UNIFORM_MATRIX;
-  UniformStructVar.Size = Size;
-  UniformStructVar.Handle = UniformLocation;
-  UniformArray.push_back(UniformStructVar);
+  uniform UniformVar;
+  UniformVar.Name = UniformName;
+  UniformVar.Type = UNIFORM_MATRIX;
+  UniformVar.Size = Size;
+  UniformVar.Handle = UniformLocation;
+  UniformArray.push_back(UniformVar);
   LogString += "Uniform matrix '" + UniformName + "' successfully created.\n";
 }
 
@@ -86,6 +86,77 @@ void uniformmanager::setUniform(const std::string UniformName, const GLint Value
   }
 }
 
+void uniformmanager::setTexture(std::string TextureName, std::string ImageName, GLuint UniformLocation) {
+  auto TextureIterator = findTexture(TextureName);
+  if (TextureIterator != TextureArray.end()) {
+    int Width, Height, Channels;
+    int TextureUnit = ++TextureCount;
+    unsigned char* Image = stbi_load(ImageName.c_str(), &Width, &Height, &Channels, 0);
+    if (Image != nullptr) {
+      LogString += "Loading Image '" + ImageName + "': Width " + std::to_string(Width) + ", Height " + std::to_string(Height) + " with " + std::to_string(Channels) + " channels.\n";
+      glBindTextureUnit(TextureUnit, TextureIterator->Handle);
+      if (Channels == 4) {
+        glTextureStorage2D(TextureIterator->Handle, 1, GL_RGBA8, Width, Height);
+        glTextureSubImage2D(TextureIterator->Handle, 0, 0, 0, Width, Height, GL_RGBA, GL_UNSIGNED_BYTE, Image);
+      } else if (Channels == 3) {
+        glTextureStorage2D(TextureIterator->Handle, 1, GL_RGB8, Width, Height);
+        glTextureSubImage2D(TextureIterator->Handle, 0, 0, 0, Width, Height, GL_RGB, GL_UNSIGNED_BYTE, Image);
+      } else {
+        LogString += "Warning: Cannot load image '" + ImageName + "' into texture '" + TextureName + "': Invalid channels.\n";
+        return;
+      }
+      LogString += "Image '" + ImageName + "' loaded into texture '" + TextureName + "'.\n";
+      glUniform1i(UniformLocation, TextureUnit);
+
+    } else LogString += "Warning: Cannot load image '" + ImageName + "' into texture '" + TextureName + "': File not found.\n";
+    stbi_image_free(Image);
+  }
+}
+
+void uniformmanager::setTexture(std::string TextureName, GLenum InternalFormat, int Width, int Height) {
+  auto TextureIterator = findTexture(TextureName);
+  if (TextureIterator != TextureArray.end()) {
+    int TextureUnit = ++TextureCount;
+    glBindTextureUnit(TextureUnit, TextureIterator->Handle);
+    glTextureStorage2D(TextureIterator->Handle, 1, InternalFormat, Width, Height);
+    LogString += "Texture '" + TextureName + "' set.\n";
+  }
+}
+
+void uniformmanager::setTexture(std::string TextureName, int Samples, GLenum InternalFormat, int Width, int Height, bool FixedSamples) {
+  auto TextureIterator = findTexture(TextureName);
+  if (TextureIterator != TextureArray.end()) {
+    int TextureUnit = ++TextureCount;
+    glBindTextureUnit(TextureUnit, TextureIterator->Handle);
+    glTextureStorage2DMultisample(TextureIterator->Handle, Samples, InternalFormat, Width, Height, FixedSamples);
+    LogString += "Multisample texture '" + TextureName + "' set.\n";
+  }
+}
+
+void uniformmanager::setDefaultParameters(const std::string TextureName, int MinFilter, int MagFilter, int WrapS, int WrapT) {
+  auto TextureIterator = findTexture(TextureName);
+  if (TextureIterator != TextureArray.end()) {
+    glTextureParameteri(TextureIterator->Handle, GL_TEXTURE_MIN_FILTER, MinFilter);
+    glTextureParameteri(TextureIterator->Handle, GL_TEXTURE_MAG_FILTER, MagFilter);
+    glTextureParameteri(TextureIterator->Handle, GL_TEXTURE_WRAP_S, WrapS); 
+    glTextureParameteri(TextureIterator->Handle, GL_TEXTURE_WRAP_T, WrapT); 
+  }
+}
+
+void uniformmanager::setParameter(const std::string TextureName, GLenum Parameter, int Value) {
+  auto TextureIterator = findTexture(TextureName);
+  if (TextureIterator != TextureArray.end()) {
+    glTextureParameteri(TextureIterator->Handle, Parameter, Value);
+  }
+}
+
+GLuint uniformmanager::getTexture(std::string TextureName) {
+  auto TextureIterator = findTexture(TextureName);
+  if (TextureIterator != TextureArray.end()) {
+    return TextureIterator->Handle;
+  }
+}
+
 std::string uniformmanager::getLog() {
   std::string Log = LogString;
   LogString = '\n';
@@ -93,16 +164,34 @@ std::string uniformmanager::getLog() {
 }
 
 void uniformmanager::cleanUp() {
-  // No cleanup needed.
+  for (auto TextureIterator : TextureArray)
+    glDeleteTextures(1, &TextureIterator.Handle);
 }
 
 uniformmanager::~uniformmanager() {
 }
 
-auto uniformmanager::findUniform(const std::string UniformName) -> std::vector<uniformstruct>::iterator{
+void uniformmanager::createTextureHelper(GLuint* Textures, int& Index, const std::string TextureName) {
+  Index--;
+  texture TextureVar;
+  TextureVar.Name = TextureName;
+  TextureVar.Handle = Textures[Index];
+  TextureArray.push_back(TextureVar);
+  LogString += "Texture '" + TextureName + "' created.\n";
+}
+
+auto uniformmanager::findUniform(const std::string UniformName) -> std::vector<uniform>::iterator{
   auto UniformIterator = std::find_if(UniformArray.begin(), UniformArray.end(), 
-      [&] (const uniformstruct& UniformStructVar) {return UniformStructVar.Name == UniformName;});
+      [&] (const uniform& UniformVar) {return UniformVar.Name == UniformName;});
   if (UniformIterator == UniformArray.end())
     LogString = "Warning: uniform '" + UniformName + "' not found.\n";
   return UniformIterator;
+}
+
+auto uniformmanager::findTexture(const std::string TextureName) -> std::vector<texture>::iterator {
+  auto TextureIterator = std::find_if(TextureArray.begin(), TextureArray.end(), 
+      [&] (const texture& TextureVar) {return TextureVar.Name == TextureName;});
+  if (TextureIterator == TextureArray.end())
+    LogString = "Warning: Texture '" + TextureName + "' not found.\n";
+  return TextureIterator;
 }

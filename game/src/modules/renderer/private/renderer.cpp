@@ -35,7 +35,7 @@ void APIENTRY openglCallbackFunction(GLenum source, GLenum type, GLuint id, GLen
   /*(void)source; (void)type; (void)id; 
   (void)severity; (void)length; (void)userParam;*/
 
-  renderer::ThisPointer->request("Logger", "log", renderer::ThisPointer->getName(), std::string(message)); 
+  //renderer::ThisPointer->request("Logger", "log", renderer::ThisPointer->getName(), std::string(message)); 
   if (severity == GL_DEBUG_SEVERITY_HIGH) {
     std::string Log = message;
     renderer::ThisPointer->request("Logger", "log", renderer::ThisPointer->getName(), Log);
@@ -74,9 +74,9 @@ void renderer::prepare() {
     continue;
   glViewport(0, 0, WindowData.WindowWidth, WindowData.WindowHeight);
   preparePrograms();
+  prepareTextures();
   prepareBuffers();
   prepareUniforms();
-  prepareSkydome();
   prepareState();
  
   ProgramManager.installProgram("Compute");
@@ -118,11 +118,49 @@ void renderer::preparePrograms() {
   ProgramManager.linkProgram("Skydome");
 }
 
+void renderer::prepareTextures() {
+  UniformManager.createTextures(GL_TEXTURE_2D, 7, "Shadows", "Tint1", "Tint2", "Sun", "Moon", "Clouds1", "Clouds2");
+  
+  UniformManager.setTexture("Shadows", GL_FLOAT, 1024, 1024);
+  UniformManager.setDefaultParameters("Shadows", GL_NEAREST, GL_NEAREST, GL_REPEAT, GL_REPEAT);
+
+  ProgramManager.installProgram("Skydome");
+  GLint Location;
+
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "tint");
+  UniformManager.setTexture("Tint1", "content/skydome/tint.tga", Location);
+  UniformManager.setDefaultParameters("Tint1", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "tint1");
+  UniformManager.setTexture("Tint2", "content/skydome/tint2.tga", Location);
+  UniformManager.setDefaultParameters("Tint2", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "sun");
+  UniformManager.setTexture("Sun", "content/skydome/sun.tga", Location);
+  UniformManager.setDefaultParameters("Sun", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "moon");
+  UniformManager.setTexture("Moon", "content/skydome/moon.tga", Location);
+  UniformManager.setDefaultParameters("Moon", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "clouds1");
+  UniformManager.setTexture("Clouds1", "content/skydome/clouds1.tga", Location);
+  UniformManager.setDefaultParameters("Shadows", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+  /*Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "clouds2");
+  UniformManager.setTexture("Clouds2", "content/skydome/clouds1.tga", Location);
+  UniformManager.setDefaultParameters("Clouds2", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);*/
+
+  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "tint");
+  UniformManager.setTexture("Tint1", "content/skydome/tint.tga", Location);
+  UniformManager.setDefaultParameters("Shadows", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+}
+
 void renderer::prepareBuffers() {
   BufferManager.createBuffers(5, "InputBuffer", "StorageBuffer", "ColourBuffer", "LightBuffer", "DrawBuffer");
 
   GLuint InputBindingPoint = 1;
-  std::vector<uint64_t> Vector(EncoderData.BufferSizeBlocks * 2, 0);
+  std::vector<uint64_t> Vector(EncoderData.BufferSizeBlocks * 2, 0); // 1 block = 2X 64-bit
   if (EncoderData.FileIn)
     EncoderData.FileIn.read((char*)Vector.data(), EncoderData.BufferSizeBytes);
   ProgramManager.setBinding("Compute", GL_SHADER_STORAGE_BLOCK, "InputBuffer", InputBindingPoint);
@@ -156,20 +194,23 @@ void renderer::prepareBuffers() {
   BufferManager.setBuffer("DrawBuffer", GL_DRAW_INDIRECT_BUFFER, sizeof(indirectstruct), &Indirect, 0);
   BufferManager.bindBuffer("DrawBuffer", GL_SHADER_STORAGE_BUFFER, DrawBindingPoint);
 
-  GLuint FrameBufferTexture;
-  int num_samples = 32;
-  glActiveTexture(GL_TEXTURE0);
-  glGenTextures( 1, &FrameBufferTexture );
-  glBindTexture( GL_TEXTURE_2D_MULTISAMPLE, FrameBufferTexture );
-  glTexImage2DMultisample( GL_TEXTURE_2D_MULTISAMPLE, num_samples, GL_RGBA8, WindowData.WindowWidth, WindowData.WindowHeight, true );
-  //glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+  BufferManager.createFrameBuffers(2, "Multisample", "Shadows");
 
+  GLuint Texture;
+  int num_samples = 32;
+  UniformManager.createTextures(GL_TEXTURE_2D_MULTISAMPLE, 1, "Multisample");
+  UniformManager.setTexture("Multisample", num_samples, GL_RGBA8, WindowData.WindowWidth, WindowData.WindowHeight, true);
+  //glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
   BufferManager.createRenderBuffers(1, "RenderBuffer");
   BufferManager.setRenderBuffer("RenderBuffer", num_samples, GL_DEPTH24_STENCIL8, WindowData.WindowWidth, WindowData.WindowHeight);
+  Texture = UniformManager.getTexture("Multisample");
+  BufferManager.setFrameBuffer("Multisample", GL_COLOR_ATTACHMENT0, Texture, 0);
+  BufferManager.setFrameBuffer("Multisample", "RenderBuffer");
 
-  BufferManager.createFrameBuffers(1, "FrameBuffer");
-  BufferManager.setFrameBuffer("FrameBuffer", GL_COLOR_ATTACHMENT0, FrameBufferTexture, 0);
-  BufferManager.setFrameBuffer("FrameBuffer", "RenderBuffer");
+  Texture = UniformManager.getTexture("Shadows");
+  BufferManager.setFrameBuffer("Shadows", GL_DEPTH_ATTACHMENT, Texture, 0);
+  glDrawBuffer(GL_NONE);
+  glReadBuffer(GL_NONE);
 }
 
 void renderer::prepareUniforms() {
@@ -211,90 +252,6 @@ void renderer::prepareUniforms() {
   UniformManager.createUniform("Offset", 1, Location);
 }
 
-void renderer::prepareSkydome() {
-  int Width, Height, Channels;
-  unsigned char* Image;
- 
-  GLuint SkydomeTextures[6];
-  glCreateTextures(GL_TEXTURE_2D, 6, SkydomeTextures);
-
-  glBindTextureUnit(1, SkydomeTextures[0]);
-  Image = stbi_load(std::string("content/skydome/tint.tga").c_str(), &Width, &Height, &Channels, 4);
-  glTextureStorage2D(SkydomeTextures[0], 1, GL_RGBA8, Width, Height);
-  glTextureSubImage2D(SkydomeTextures[0], 0, 0, 0, Width, Height, GL_RGBA, GL_UNSIGNED_BYTE, Image);
-  stbi_image_free(Image);
-  glTextureParameteri(SkydomeTextures[0], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTextureParameteri(SkydomeTextures[0], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  //glTextureParameteri(SkydomeTextures[0], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  //glTextureParameteri(SkydomeTextures[0], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-  glBindTextureUnit(2, SkydomeTextures[1]);
-  Image = stbi_load(std::string("content/skydome/tint2.tga").c_str(), &Width, &Height, &Channels, 4);
-  glTextureStorage2D(SkydomeTextures[1], 1, GL_RGBA8, Width, Height);
-  glTextureSubImage2D(SkydomeTextures[1], 0, 0, 0, Width, Height, GL_RGBA, GL_UNSIGNED_BYTE, Image);
-  stbi_image_free(Image);
-  glTextureParameteri(SkydomeTextures[1], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTextureParameteri(SkydomeTextures[1], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTextureParameteri(SkydomeTextures[1], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTextureParameteri(SkydomeTextures[1], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-  glBindTextureUnit(3, SkydomeTextures[2]);
-  Image = stbi_load(std::string("content/skydome/sun.tga").c_str(), &Width, &Height, &Channels, 4);
-  glTextureStorage2D(SkydomeTextures[2], 1, GL_RGBA8, Width, Height);
-  glTextureSubImage2D(SkydomeTextures[2], 0, 0, 0, Width, Height, GL_RGBA, GL_UNSIGNED_BYTE, Image);
-  stbi_image_free(Image);
-  glTextureParameteri(SkydomeTextures[2], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTextureParameteri(SkydomeTextures[2], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTextureParameteri(SkydomeTextures[2], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTextureParameteri(SkydomeTextures[2], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-  glBindTextureUnit(4, SkydomeTextures[3]);
-  Image = stbi_load(std::string("content/skydome/moon.tga").c_str(), &Width, &Height, &Channels, 4);
-  glTextureStorage2D(SkydomeTextures[3], 1, GL_RGBA8, Width, Height);
-  glTextureSubImage2D(SkydomeTextures[3], 0, 0, 0, Width, Height, GL_RGBA, GL_UNSIGNED_BYTE, Image);
-  stbi_image_free(Image);
-  glTextureParameteri(SkydomeTextures[3], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTextureParameteri(SkydomeTextures[3], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTextureParameteri(SkydomeTextures[3], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTextureParameteri(SkydomeTextures[3], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-  glBindTextureUnit(5, SkydomeTextures[4]);
-  Image = stbi_load(std::string("content/skydome/clouds1.tga").c_str(), &Width, &Height, &Channels, 4);
-  glTextureStorage2D(SkydomeTextures[4], 1, GL_RGBA8, Width, Height);
-  glTextureSubImage2D(SkydomeTextures[4], 0, 0, 0, Width, Height, GL_RGBA, GL_UNSIGNED_BYTE, Image);
-  stbi_image_free(Image);
-  glTextureParameteri(SkydomeTextures[4], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTextureParameteri(SkydomeTextures[4], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTextureParameteri(SkydomeTextures[4], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTextureParameteri(SkydomeTextures[4], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-  glBindTextureUnit(6, SkydomeTextures[5]);
-  Image = stbi_load(std::string("content/skydome/clouds2.tga").c_str(), &Width, &Height, &Channels, 4);
-  glTextureStorage2D(SkydomeTextures[5], 1, GL_RGBA8, Width, Height);
-  glTextureSubImage2D(SkydomeTextures[5], 0, 0, 0, Width, Height, GL_RGBA, GL_UNSIGNED_BYTE, Image);
-  stbi_image_free(Image);
-  glTextureParameteri(SkydomeTextures[5], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTextureParameteri(SkydomeTextures[5], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTextureParameteri(SkydomeTextures[5], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTextureParameteri(SkydomeTextures[5], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-  ProgramManager.installProgram("Skydome");
-  GLint Location;
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "tint");
-  glUniform1i(Location, 1);
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "tint2");
-  glUniform1i(Location, 2);
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "sun");
-  glUniform1i(Location, 3);
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "moon");
-  glUniform1i(Location, 4);
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "clouds1");
-  glUniform1i(Location, 5);
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "clouds2");
-  glUniform1i(Location, 6);
-  //glBindTexture(GL_TEXTURE_CUBE_MAP, 0);*/
-}
-
 void renderer::prepareState() {
   glEnable(GL_MULTISAMPLE);
   glEnable(GL_DEPTH_TEST);
@@ -319,7 +276,7 @@ void renderer::draw() {
     NewCameraData.DataIsReady.store(false); // Handshaking: State says true and Renderer changes data, Renderer says false and State changed data.
   }
 
-  BufferManager.bindFrameBuffer("FrameBuffer", GL_FRAMEBUFFER);
+  BufferManager.bindFrameBuffer("Multisample", GL_FRAMEBUFFER);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   
   glDepthFunc(GL_LESS);
@@ -342,7 +299,7 @@ void renderer::draw() {
   glDrawArrays(GL_PATCHES, 0, 12);
 
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-  BufferManager.bindFrameBuffer("FrameBuffer", GL_READ_FRAMEBUFFER);
+  BufferManager.bindFrameBuffer("Multisample", GL_READ_FRAMEBUFFER);
   glDrawBuffer(GL_BACK);
   glBlitFramebuffer(0, 0, WindowData.WindowWidth, WindowData.WindowHeight, 0, 0, WindowData.WindowWidth, WindowData.WindowHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
   swapBuffers();

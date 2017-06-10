@@ -2,7 +2,7 @@
 
 window::window() :
   ExitGame(nullptr) {
-  WindowData = {"A Block's League", 1920, 1080, nullptr, nullptr};
+  WindowData = {"A Block's League", 640, 480, nullptr, nullptr};
 }
 
 void window::start() {

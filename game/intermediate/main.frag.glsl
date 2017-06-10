@@ -24,6 +24,9 @@ flat in uint Level;
 out vec4 FinalColour;
 
 vec3 applyLight(light Light, vec3 Normal, vec3 Position, vec3 SurfaceToCamera) {
+    vec3 LightDirection = normalize(Light.Position.xyz - Position);
+    vec3 HalfwayDirection = normalize(LightDirection + SurfaceToCamera);
+
     vec3 SurfaceToLight;
     float Attenuation = 1.0;
     if(Light.Position.w == 0.0) {
@@ -47,8 +50,8 @@ vec3 applyLight(light Light, vec3 Normal, vec3 Position, vec3 SurfaceToCamera) {
     //specular
     float SpecularCoefficient = 0.0;
     if(DiffuseCoefficient > 0.0 && Level == 2)
-        SpecularCoefficient = pow(max(0.0, dot(SurfaceToCamera, reflect(-SurfaceToLight, Normal))), 2);
-    vec3 Specular = SpecularCoefficient * vec3(1.0, 1.0, 1.0) * Light.Intensity;
+        SpecularCoefficient = pow(max(0.0, dot(Normal, HalfwayDirection)), 8);
+    vec3 Specular = SpecularCoefficient * vec3(0.5, 0.5, 0.5) * Light.Intensity;
 
     //linear color (color before gamma correction)
     return Ambient + Attenuation*(Diffuse + Specular);
@@ -58,9 +61,10 @@ void main() {
     vec3 SurfaceToCamera = normalize(CameraPosition - WSPosition);
 
     //combine color from all the lights
-    light Sun = {vec4(SunPosition, 1), vec3(1), 0.2, 0.005};
+    light Sun = {vec4(-SunPosition.x, SunPosition.y, SunPosition.z, 0), vec3(1), 0.2, 0.005};
     if (SunPosition.y < 0) {
       Sun.Position.y *= -1;
+      Sun.Position.x *= -1;
       Sun.Intensity = vec3(0.7529, 0.7529, 0.96);
       Sun.AmbientCoefficient = 0.000005;
     }
@@ -73,7 +77,7 @@ void main() {
     }  else LinearColour = Colour;
 
     //final color (after gamma correction)
-    vec3 Gamma = vec3(1.0/2.2);
+    vec3 Gamma = vec3(1.0 / 2.2);
     FinalColour = vec4(pow(LinearColour, Gamma), 1.0);
     
     //FinalColour = vec4(Colour, 1);

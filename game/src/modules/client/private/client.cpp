@@ -49,7 +49,7 @@ void client::update() {
     //CameraData.Position.y = 2;
   CameraData.CameraMatrix = glm::lookAt(CameraData.Position, CameraData.Position + CameraData.Front, CameraData.Up);
 
-  CameraData.SkydomeMatrix = CameraData.PerspectiveMatrix * glm::lookAt(glm::vec3(CameraData.Position.x, CameraData.Position.y + 0.0, CameraData.Position.z), CameraData.Position + glm::vec3(CameraData.Front.x, -CameraData.Front.y, -CameraData.Front.z), CameraData.Up);
+  CameraData.SkydomeMatrix = CameraData.PerspectiveMatrix * glm::lookAt(glm::vec3(CameraData.Position.x, CameraData.Position.y + 0.0, CameraData.Position.z), CameraData.Position + glm::vec3(-CameraData.Front.x, -CameraData.Front.y, CameraData.Front.z), CameraData.Up);
   CameraData.StarMatrix = glm::rotate((glm::mediump_float)Increment++ / 10000, glm::vec3(0, 1, 0));
   
   CameraData.Weather = 0.7;//glm::normalize(CameraData.Weather + (std::rand() % 500)/1000 * 2);
