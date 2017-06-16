@@ -62,7 +62,7 @@ void renderer::start() {
   addFunction("draw", &renderer::draw);
   addFunction("cleanUp", &renderer::cleanUp);
   request("Window", "getWindowData", &WindowData.ObjectPointer, &WindowData.SwapBuffers, &WindowData.WindowWidth, &WindowData.WindowHeight, &WindowData.DataIsReady);
-  request("Client", "setCameraPointers", (float*)NewCameraData.CSMatrix, (float*)NewCameraData.WSMatrix, (float*)NewCameraData.Position, (float*)NewCameraData.SkydomeMatrix, (float*)NewCameraData.StarMatrix, (float*)NewCameraData.SunPosition, (float*)&NewCameraData.Weather, (float*)&NewCameraData.Time, &NewCameraData.DataIsReady);
+  request("Client", "setCameraPointers", (float*)NewCameraData.SSMatrix, (float*)NewCameraData.CSMatrix, (float*)NewCameraData.WSMatrix, (float*)NewCameraData.Position, (float*)NewCameraData.SkydomeMatrix, (float*)NewCameraData.StarMatrix, (float*)NewCameraData.SunPosition, (float*)&NewCameraData.Weather, (float*)&NewCameraData.Time, &NewCameraData.DataIsReady);
 }
 
 void renderer::prepare() {
@@ -72,7 +72,6 @@ void renderer::prepare() {
   // NOTE Acessing Windowdata may be unsafe if data is changed after atomic is true.
   while (!WindowData.DataIsReady.load())
     continue;
-  glViewport(0, 0, WindowData.WindowWidth, WindowData.WindowHeight);
   preparePrograms();
   prepareTextures();
   prepareBuffers();
@@ -98,6 +97,12 @@ void renderer::prepare() {
 }
 
 void renderer::preparePrograms() {
+  ProgramManager.createShader("intermediate/shadows.vert.glsl", GL_VERTEX_SHADER);
+  ProgramManager.createShader("intermediate/shadows.frag.glsl", GL_FRAGMENT_SHADER);
+  ProgramManager.createProgram("Shadows");
+  ProgramManager.addShader("Shadows", "intermediate/shadows.vert.glsl", "intermediate/shadows.frag.glsl");
+  ProgramManager.linkProgram("Shadows");
+
   ProgramManager.createShader("intermediate/main.vert.glsl", GL_VERTEX_SHADER);
   ProgramManager.createShader("intermediate/main.frag.glsl", GL_FRAGMENT_SHADER);
   ProgramManager.createProgram("Main");
@@ -119,13 +124,15 @@ void renderer::preparePrograms() {
 }
 
 void renderer::prepareTextures() {
+  GLint Location;
   UniformManager.createTextures(GL_TEXTURE_2D, 7, "Shadows", "Tint1", "Tint2", "Sun", "Moon", "Clouds1", "Clouds2");
-  
-  UniformManager.setTexture("Shadows", GL_FLOAT, 1024, 1024);
+ 
+  ProgramManager.installProgram("Main");
+  Location = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "ShadowDepth");
+  UniformManager.setBlankTexture("Shadows", GL_DEPTH_COMPONENT16, 1024, 1024, Location);
   UniformManager.setDefaultParameters("Shadows", GL_NEAREST, GL_NEAREST, GL_REPEAT, GL_REPEAT);
 
   ProgramManager.installProgram("Skydome");
-  GLint Location;
 
   Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "tint");
   UniformManager.setTexture("Tint1", "content/skydome/tint.tga", Location);
@@ -145,7 +152,7 @@ void renderer::prepareTextures() {
 
   Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "clouds1");
   UniformManager.setTexture("Clouds1", "content/skydome/clouds1.tga", Location);
-  UniformManager.setDefaultParameters("Shadows", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+  UniformManager.setDefaultParameters("Clouds1", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
   /*Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "clouds2");
   UniformManager.setTexture("Clouds2", "content/skydome/clouds1.tga", Location);
@@ -153,7 +160,7 @@ void renderer::prepareTextures() {
 
   Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "tint");
   UniformManager.setTexture("Tint1", "content/skydome/tint.tga", Location);
-  UniformManager.setDefaultParameters("Shadows", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+  UniformManager.setDefaultParameters("Tint1", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 }
 
 void renderer::prepareBuffers() {
@@ -170,6 +177,7 @@ void renderer::prepareBuffers() {
 
   GLuint StorageBindingPoint = 2;
   ProgramManager.setBinding("Compute", GL_SHADER_STORAGE_BLOCK, "StorageBuffer", StorageBindingPoint);
+  ProgramManager.setBinding("Shadows", GL_SHADER_STORAGE_BLOCK, "StorageBuffer", StorageBindingPoint);
   ProgramManager.setBinding("Main", GL_SHADER_STORAGE_BLOCK, "StorageBuffer", StorageBindingPoint);
   BufferManager.setBuffer("StorageBuffer", GL_SHADER_STORAGE_BUFFER, 117440512, nullptr, 0);
   BufferManager.bindBuffer("StorageBuffer", StorageBindingPoint);
@@ -195,11 +203,11 @@ void renderer::prepareBuffers() {
   BufferManager.bindBuffer("DrawBuffer", GL_SHADER_STORAGE_BUFFER, DrawBindingPoint);
 
   BufferManager.createFrameBuffers(2, "Multisample", "Shadows");
-
   GLuint Texture;
+
   int num_samples = 32;
   UniformManager.createTextures(GL_TEXTURE_2D_MULTISAMPLE, 1, "Multisample");
-  UniformManager.setTexture("Multisample", num_samples, GL_RGBA8, WindowData.WindowWidth, WindowData.WindowHeight, true);
+  UniformManager.setMultisampleTexture("Multisample", num_samples, GL_RGBA8, WindowData.WindowWidth, WindowData.WindowHeight, true);
   //glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
   BufferManager.createRenderBuffers(1, "RenderBuffer");
   BufferManager.setRenderBuffer("RenderBuffer", num_samples, GL_DEPTH24_STENCIL8, WindowData.WindowWidth, WindowData.WindowHeight);
@@ -209,12 +217,22 @@ void renderer::prepareBuffers() {
 
   Texture = UniformManager.getTexture("Shadows");
   BufferManager.setFrameBuffer("Shadows", GL_DEPTH_ATTACHMENT, Texture, 0);
-  glDrawBuffer(GL_NONE);
-  glReadBuffer(GL_NONE);
+  BufferManager.setFrameBuffer("Shadows", GL_COLOR_ATTACHMENT0, 0, 0);
+  BufferManager.checkFrameBuffer("Shadows");
 }
 
 void renderer::prepareUniforms() {
   GLint Location;
+
+  Location = ProgramManager.getResourceLocation("Shadows", GL_UNIFORM, "SSMatrix");
+  UniformManager.createUniformMatrix("SSMatrixShadows", 4, Location);
+
+  Location = ProgramManager.getResourceLocation("Shadows", GL_UNIFORM, "WSMatrix");
+  UniformManager.createUniformMatrix("WSMatrixShadows", 4, Location);
+
+  Location = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "SSMatrix");
+  UniformManager.createUniformMatrix("SSMatrixMain", 4, Location);
+
   Location = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "CSMatrix");
   UniformManager.createUniformMatrix("CSMatrixMain", 4, Location);
 
@@ -265,6 +283,7 @@ void renderer::prepareState() {
 void renderer::draw() {
   dispatchEncoders();
   if (NewCameraData.DataIsReady.load()) {
+    std::copy(NewCameraData.SSMatrix, NewCameraData.SSMatrix + 16, CurrentCameraData.SSMatrix);
     std::copy(NewCameraData.CSMatrix, NewCameraData.CSMatrix + 16, CurrentCameraData.CSMatrix);
     std::copy(NewCameraData.WSMatrix, NewCameraData.WSMatrix + 16, CurrentCameraData.WSMatrix);
     std::copy(NewCameraData.Position, NewCameraData.Position + 3, CurrentCameraData.Position);
@@ -276,11 +295,23 @@ void renderer::draw() {
     NewCameraData.DataIsReady.store(false); // Handshaking: State says true and Renderer changes data, Renderer says false and State changed data.
   }
 
+  BufferManager.bindFrameBuffer("Shadows", GL_FRAMEBUFFER);
+  glViewport(0, 0, 1024, 1024);
+  glClear(GL_DEPTH_BUFFER_BIT);
+  //glCullFace(GL_FRONT);
+  ProgramManager.installProgram("Shadows");
+  UniformManager.setUniform("SSMatrixShadows", (GLfloat*)(CurrentCameraData.SSMatrix));
+  UniformManager.setUniform("WSMatrixShadows", (GLfloat*)(CurrentCameraData.WSMatrix));
+  glDrawArraysIndirect(GL_TRIANGLES, 0); //36
+
   BufferManager.bindFrameBuffer("Multisample", GL_FRAMEBUFFER);
+  glViewport(0, 0, WindowData.WindowWidth, WindowData.WindowHeight);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  //glCullFace(GL_BACK);
   
   glDepthFunc(GL_LESS);
   ProgramManager.installProgram("Main");
+  UniformManager.setUniform("SSMatrixMain", (GLfloat*)(CurrentCameraData.SSMatrix));
   UniformManager.setUniform("CSMatrixMain", (GLfloat*)(CurrentCameraData.CSMatrix));
   UniformManager.setUniform("WSMatrixMain", (GLfloat*)(CurrentCameraData.WSMatrix));
   UniformManager.setUniform("CameraPosition", (GLfloat*)(CurrentCameraData.Position));

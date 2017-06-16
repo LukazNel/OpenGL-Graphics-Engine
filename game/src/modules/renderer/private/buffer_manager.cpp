@@ -123,6 +123,23 @@ void buffermanager::setFrameBuffer(const std::string FrameBufferName, GLenum Att
   }
 }
   
+//!-- INCOMPLETE --!//
+void buffermanager::checkFrameBuffer(const std::string FrameBufferName) {
+  auto FrameBufferIterator = findFrameBuffer(FrameBufferName);
+  if (FrameBufferIterator != FrameBufferArray.end()) {
+    GLenum Status = glCheckNamedFramebufferStatus(FrameBufferIterator->Handle, GL_READ_FRAMEBUFFER);
+    switch (Status) {
+      case GL_FRAMEBUFFER_COMPLETE : LogString += "FrameBuffer '" + FrameBufferName + "' is framebuffer complete.\n";
+      break;
+      case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT : LogString += "Warning: FrameBuffer '" + FrameBufferName + "' has incomplete attachments.\n";
+      break;
+      //case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT : LogString += "Warning: FrameBuffer '" + FrameBufferName + "' has incomplete attachments.\n";
+      //break;
+    }
+  }
+}
+//!-- INCOMPLETE --!//
+
 void buffermanager::bindFrameBuffer(const std::string FrameBufferName, GLenum FrameBufferType) {
   auto FrameBufferIterator = findFrameBuffer(FrameBufferName);
   if (FrameBufferIterator != FrameBufferArray.end()) {

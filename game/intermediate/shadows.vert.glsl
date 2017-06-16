@@ -1,7 +1,6 @@
 #version 450 core
 
 uniform mat4 SSMatrix;
-uniform mat4 CSMatrix;
 uniform mat4 WSMatrix;
 
 struct block {
@@ -15,12 +14,6 @@ struct block {
 layout(std430) buffer StorageBuffer {
   block BlockArray[]; // 1000000
 } BufferIn;
-
-out vec3 SSPosition;
-out vec3 WSPosition;
-out vec3 Colour;
-out vec3 WSNormal;
-flat out uint Level;
 
 vec3 ExpandArray[36] = {
   {-0.5, 0.5, 0.5}, {0.5, 0.5, 0.5}, {-0.5, -0.5, 0.5}, {0.5, 0.5, 0.5}, {0.5, -0.5, 0.5}, {-0.5, -0.5, 0.5}, //Front
@@ -47,14 +40,7 @@ void main() {
   vec3 Vertex = ExpandArray[VertexID];
   vec3 RotatedPosition = Vertex + (2 * cross(Block.Quaternion.xyz, (cross(Block.Quaternion.xyz, Vertex) + Block.Quaternion.w * Vertex)));
   vec3 TranslatedPosition = vec3(Block.Coordinates) + Block.Offset + RotatedPosition;
-  WSPosition = vec3(WSMatrix * vec4(TranslatedPosition, 1));
-  SSPosition = vec3(SSMatrix * vec4(WSPosition, 1));
+  vec3 WSPosition = vec3(WSMatrix * vec4(TranslatedPosition, 1));
 //Position = vec3(WSMatrix * vec4(Positions + ExpandArray[Vertex], 1));
-  gl_Position = CSMatrix * vec4(WSPosition, 1);
-//gl_Position = vec4(ModelMatrix * vec4(VertexPosition, 1));
-//gl_Position = ModelMatrix * vec4(VertexPosition, 1);
-  Colour = Block.Colour;
-  vec3 Normal = NormalArray[int(VertexID / 6)];
-  WSNormal = normalize(transpose(inverse(mat3(WSMatrix))) * (Normal + (2 * cross(Block.Quaternion.xyz, (cross(Block.Quaternion.xyz, Normal) + Block.Quaternion.w * Normal)))));
-  Level = Block.Level;
+  gl_Position = SSMatrix * vec4(WSPosition, 1);
 }

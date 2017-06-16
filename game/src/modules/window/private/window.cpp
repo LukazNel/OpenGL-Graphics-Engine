@@ -86,13 +86,14 @@ void window::setOpenGLAttributes() {
 
 void window::frameCount() {
   double CurrentTime = SDL_GetTicks();
-  TimeData.DeltaTime = CurrentTime - TimeData.LastTime;
-  if (TimeData.DeltaTime > 500) {
+  TimeData.TimeDifference = CurrentTime - TimeData.LastTime;
+  if (TimeData.TimeDifference > 500) {
     float Fps = TimeData.DeltaTime / TimeData.NFrames;
     std::string FpsTitle = WindowData.ProgramName + " @ " + std::to_string(Fps) + " Seconds per Frame.";
     SDL_SetWindowTitle(WindowData.MainWindow, FpsTitle.c_str());
     TimeData.LastTime = CurrentTime;
     TimeData.NFrames = 0;
+    TimeData.DeltaTime = TimeData.TimeDifference;
   }
   TimeData.NFrames++;
 }

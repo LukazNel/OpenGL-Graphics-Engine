@@ -1,6 +1,5 @@
 #include <iostream>
 #include <fstream>
-#include <bitset>
 #include <cstdlib>
 #include <cstdint>
 
@@ -44,7 +43,7 @@ int main(int argc, char* argv[]) {
 }
 
 void mortonEncode(block &Block, uint64_t (&Output)[2]) {
-   int Shift = 1 - 21;
+  int Shift = 1 - 21;
   for (int i = 0; i < 3; i++) {
     Shift += 21;
     if (Block.Coordinates[i] < 0) {
@@ -60,7 +59,7 @@ void mortonEncode(block &Block, uint64_t (&Output)[2]) {
   
   Shift = 16;
   for (int i = 0; i < 3; i++) {
-    int RotateVar = 0;
+    uint64_t RotateVar = 0;
     if (Block.Rotation[i] < 0) {
       RotateVar |= 0x1 << 7;
       Block.Rotation[i] *= -1;
@@ -72,7 +71,7 @@ void mortonEncode(block &Block, uint64_t (&Output)[2]) {
 
   Shift = 40;
   for (int i = 0; i < 3; i++) {
-    int OffsetVar = 0;
+    uint64_t OffsetVar = 0;
     if (Block.Offset[i] < 0) {
       OffsetVar |= 0x1 << 7;
       Block.Offset[i] *= -1;

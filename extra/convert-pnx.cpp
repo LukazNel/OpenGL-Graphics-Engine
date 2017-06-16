@@ -42,10 +42,16 @@ int findColour(std::vector<unsigned char> InputColour);
 
 int main(int argc, char* argv[])  {
   std::string FileName;
-  if (argc != 2) {
-    std::cout << "Usage: convert-pnx [.pnx file]\n";
+  int Enlarge = 1;
+  if (argc == 2)
+    FileName = argv[1];
+  else if (argc == 3) {
+    FileName = argv[1];
+    Enlarge = std::stoi(std::string(argv[2]));
+  } else {
+    std::cout << "Usage: convert-pnx [.pnx file] [Enlarge = 1]\n";
     std::exit(EXIT_FAILURE);
-  } else FileName = argv[1];
+  }
 
 
   std::fstream FileOut("blockarray", std::ios::out | std::ios::trunc | std::ios::binary);
@@ -115,14 +121,14 @@ int main(int argc, char* argv[])  {
       File.read((char*)&ImageID, sizeof(int));
       for (int z = 0; z < Layer.Size[2]; z++) {
         for (int y = 0; y < Layer.Size[1]; y++) {
-          if (VoxelObject.Images[ImageID].ColourID.at(z).at(y) != -1) {
-            block Block {{x, 1 - y + Layer.Corner[1], 1 - z + Layer.Corner[2]}, 
-VoxelObject.Images[ImageID].ColourID[z][y], Level++, {0, 0, 0}, {0, 0, 0}};
-            uint64_t Answer[2] = {0, 0};
-            encode(Block, Answer);
-            FileOut.write((char*)Answer, 16);
-            if (Level > 2)
-             Level = 0;
+          for (int w = 0; w < Enlarge; w++) {
+            if (VoxelObject.Images[ImageID].ColourID.at(z).at(y) != -1) {
+              block Block {{x, 1 - y + Layer.Corner[1], 1 - z + Layer.Corner[2]}, 
+  VoxelObject.Images[ImageID].ColourID[z][y], Level, {0, 0, 0}, {0, 0, 0}};
+              uint64_t Answer[2] = {0, 0};
+              encode(Block, Answer);
+              FileOut.write((char*)Answer, 16);
+            }
           }
         }
       }
@@ -155,7 +161,7 @@ int findColour(std::vector<unsigned char> InputColour) {
 void encode(block Block, uint64_t (&Output)[2]) {
   int Shift = 0;
 
- Shift = 1 - 21;
+  Shift = 1 - 21;
   for (int i = 0; i < 3; i++) {
     Shift += 21;
     if (Block.Coordinates[i] < 0) {
@@ -168,28 +174,28 @@ void encode(block Block, uint64_t (&Output)[2]) {
   Output[0] |= 0x1;
   Output[1] |= (Block.Colour & 0x3FF) << 4;
   Output[1] |= (Block.Level & 0x3) << 14;
-  
+
   Shift = 16;
   for (int i = 0; i < 3; i++) {
-    int RotateVar = 0;
+    unsigned int RotateVar = 0;
     if (Block.Rotation[i] < 0) {
       RotateVar |= 0x1 << 7;
       Block.Rotation[i] *= -1;
     }
     RotateVar |= (Block.Rotation[i] & 0x7F);
-    Output[1] |= RotateVar << Shift;
+    Output[1] |= ((uint64_t)RotateVar << Shift);
     Shift += 8;
   }
 
   Shift = 40;
   for (int i = 0; i < 3; i++) {
-    int OffsetVar = 0;
+    unsigned int OffsetVar = 0;
     if (Block.Offset[i] < 0) {
       OffsetVar |= 0x1 << 7;
       Block.Offset[i] *= -1;
     }
     OffsetVar |= ((int)(Block.Offset[i] * 100) & 0x7F);
-    Output[1] |= OffsetVar << Shift;
+    Output[1] |= ((uint64_t)OffsetVar << Shift);
     Shift += 8;
   }  
 }

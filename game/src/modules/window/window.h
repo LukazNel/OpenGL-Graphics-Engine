@@ -33,6 +33,7 @@ class window : public module {
   struct timestruct {
     int NFrames;
     float LastTime;
+    float TimeDifference;
     float DeltaTime;
   };
 

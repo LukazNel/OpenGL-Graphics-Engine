@@ -16,6 +16,9 @@ layout(std140) uniform LightUniform {
   light LightArray[MAX_LIGHTS];
 };
 
+uniform sampler2D ShadowDepth;
+
+in vec3 SSPosition;
 in vec3 WSPosition;
 in vec3 Colour;
 in vec3 WSNormal;
@@ -53,20 +56,26 @@ vec3 applyLight(light Light, vec3 Normal, vec3 Position, vec3 SurfaceToCamera) {
         SpecularCoefficient = pow(max(0.0, dot(Normal, HalfwayDirection)), 8);
     vec3 Specular = SpecularCoefficient * vec3(0.5, 0.5, 0.5) * Light.Intensity;
 
-    //linear color (color before gamma correction)
-    return Ambient + Attenuation*(Diffuse + Specular);
+    //shadows
+    vec3 ShadowCoord = SSPosition * 0.5 + 0.5;
+    float ClosestDepth = texture(ShadowDepth, ShadowCoord.xy).r;
+    float Bias = max(0.05 - dot(Normal, LightDirection), 0.005);
+    float Shadow = ShadowCoord.z - Bias > ClosestDepth ? 1 : 0;
+
+    //linear color (color before gamma correctioni)
+    return Ambient + (1 - Shadow)*Attenuation*(Diffuse + Specular);
 }
 
 void main() {
     vec3 SurfaceToCamera = normalize(CameraPosition - WSPosition);
 
     //combine color from all the lights
-    light Sun = {vec4(-SunPosition.x, SunPosition.y, SunPosition.z, 0), vec3(1), 0.2, 0.005};
+    light Sun = {vec4(SunPosition.x, SunPosition.y, -SunPosition.z, 0), vec3(1), 0.2, 0.005};
     if (SunPosition.y < 0) {
       Sun.Position.y *= -1;
       Sun.Position.x *= -1;
       Sun.Intensity = vec3(0.7529, 0.7529, 0.96);
-      Sun.AmbientCoefficient = 0.000005;
+      Sun.AmbientCoefficient = 0.005;
     }
     vec3 LinearColour = vec3(0);
     if (Level != 3) {

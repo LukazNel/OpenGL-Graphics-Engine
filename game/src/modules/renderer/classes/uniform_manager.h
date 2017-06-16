@@ -26,8 +26,9 @@ class uniformmanager {
     }
 
   void setTexture(std::string TextureName, std::string ImageName, GLuint UniformLocation);
-  void setTexture(std::string TextureName, GLenum InternalFormat, int Width, int Height);
-  void setTexture(std::string TextureName, int Samples, GLenum InternalFormat, int Width, int Height, bool FixedSamples);
+  void setBlankTexture(std::string TextureName, GLenum InternalFormat, int Width, int Height, GLint UniformLocation);
+  void setImageTexture(std::string TextureName, GLuint UniformLocation, GLenum InternalFormat, int Width, int Height);
+  void setMultisampleTexture(std::string TextureName, int Samples, GLenum InternalFormat, int Width, int Height, bool FixedSamples);
   void setDefaultParameters(const std::string TextureName, int MinFilter, int MagFilter, int WrapS, int WrapT);
   void setParameter(const std::string TextureName, GLenum Parameter, int Value);
   GLuint getTexture(std::string TextureName);
@@ -65,6 +66,7 @@ class uniformmanager {
   std::vector<uniform> UniformArray;
   std::vector<texture> TextureArray;
   int TextureCount;
+  int ImageCount;
   std::string LogString;
 };
 

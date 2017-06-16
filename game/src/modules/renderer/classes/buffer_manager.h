@@ -52,6 +52,7 @@ class buffermanager {
   void setFrameBuffer(const std::string FrameBufferName, const std::string RenderBufferName);
   void setFrameBuffer(const std::string FrameBufferName, GLenum Attachment, GLuint TextureHandle, int Level);
   void setFrameBuffer(const std::string FrameBufferName, GLenum Attachment, GLuint TextureHandle, int Level, int Layer);
+  void checkFrameBuffer(std::string Framebuffer); // INCOMPLETE!!
   void bindFrameBuffer(const std::string FrameBufferName, GLenum FrameBufferType);
 
   std::string getLog();

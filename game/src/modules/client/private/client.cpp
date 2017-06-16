@@ -1,12 +1,13 @@
 #include "client.h"
 
 client::client() {
+  CameraData.ShadowPerspective = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 7.5f);
   CameraData.WSMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.0625)); // or 0.03125
   CameraData.Position = {0, 10, 0};
   CameraData.Front = {0, 0, -1};
   CameraData.Up = {0, 1, 0};
-  CameraData.SunSpherical = glm::vec3(100, 90, 90); //distance, degrees from +Y, degrees from -Z
-  CameraData.Time = 1500;
+  CameraData.SunSpherical = glm::vec3(10, 90, 90); //distance, degrees from +Y, degrees from -Z
+  CameraData.WorldTime = 1500;
   ClientState.LastMouseX = 320;
   ClientState.LastMouseY = 240;
 }
@@ -19,7 +20,8 @@ void client::start() {
   addFunction("setMouse", &client::setMouse);
 }
 
-void client::setCameraPointers(float* CSMatrix, float* WSMatrix, float* Position, float* SkydomeMatrix, float* StarMatrix, float* SunPosition, float* Weather, float* Time, std::atomic<bool>* DataIsReady) {
+void client::setCameraPointers(float* SSMatrix, float* CSMatrix, float* WSMatrix, float* Position, float* SkydomeMatrix, float* StarMatrix, float* SunPosition, float* Weather, float* Time, std::atomic<bool>* DataIsReady) {
+  RendererData.SSMatrix = SSMatrix;
   RendererData.CSMatrix = CSMatrix;
   RendererData.WSMatrix = WSMatrix;
   RendererData.Position = Position;
@@ -39,35 +41,43 @@ void client::update() {
   float NewDeltaTime = 0;
   immediateRequest("Window", "getDataImmediate", &DataIsReady, &WindowWidth, &WindowHeight, &NewDeltaTime);
   if (WindowData.WindowWidth != WindowWidth || WindowData.WindowHeight != WindowHeight) {
-    CameraData.PerspectiveMatrix = glm::perspective(glm::radians(50.0f), (float)(WindowWidth / WindowHeight), 0.1f, 100.0f);
+    CameraData.CameraPerspective = glm::perspective(glm::radians(50.0f), (float)(WindowWidth / WindowHeight), 0.1f, 100.0f);
     WindowData.WindowWidth = WindowWidth;
     WindowData.WindowHeight = WindowHeight;
   }
   WindowData.DeltaTime = (WindowData.DeltaTime + NewDeltaTime) / 2;
   updatePosition();
-  //if (CameraData.Position.y < 2)
-    //CameraData.Position.y = 2;
-  CameraData.CameraMatrix = glm::lookAt(CameraData.Position, CameraData.Position + CameraData.Front, CameraData.Up);
-
-  CameraData.SkydomeMatrix = CameraData.PerspectiveMatrix * glm::lookAt(glm::vec3(CameraData.Position.x, CameraData.Position.y + 0.0, CameraData.Position.z), CameraData.Position + glm::vec3(-CameraData.Front.x, -CameraData.Front.y, CameraData.Front.z), CameraData.Up);
-  CameraData.StarMatrix = glm::rotate((glm::mediump_float)Increment++ / 10000, glm::vec3(0, 1, 0));
   
-  CameraData.Weather = 0.7;//glm::normalize(CameraData.Weather + (std::rand() % 500)/1000 * 2);
-  if (CameraData.Time > 86400)
-    CameraData.Time = 0;
-  CameraData.Time += WindowData.DeltaTime/1000;
-  CameraData.SunSpherical.y = CameraData.Time * 0.0333;
+  if (CameraData.WorldTime > 86400)
+    CameraData.WorldTime = 0;
+  CameraData.WorldTime += WindowData.DeltaTime / 1000;
+  CameraData.SunSpherical.y = CameraData.WorldTime * 0.0333;
   CameraData.SunPosition = glm::normalize(glm::vec3(
         CameraData.SunSpherical.x * sin(glm::radians(CameraData.SunSpherical.z)) * cos(glm::radians(CameraData.SunSpherical.y)),
         CameraData.SunSpherical.x * sin(glm::radians(CameraData.SunSpherical.z)) * sin(glm::radians(CameraData.SunSpherical.y)),
         CameraData.SunSpherical.x * cos(glm::radians(CameraData.SunSpherical.z))));
+  glm::vec3 SunMoonPosition = CameraData.SunPosition;
+  if (CameraData.SunPosition.y < 0) {
+    SunMoonPosition.y *= -1;
+    SunMoonPosition.x *= -1;
+  }
+  CameraData.ShadowLookat = glm::lookAt(SunMoonPosition, glm::vec3(0), glm::vec3(0, 1, 0));
+
+  CameraData.CameraLookat = glm::lookAt(CameraData.Position, CameraData.Position + CameraData.Front, CameraData.Up);
+
+  CameraData.SkydomeMatrix = CameraData.CameraPerspective * glm::lookAt(glm::vec3(CameraData.Position.x, CameraData.Position.y + 0.0, CameraData.Position.z), CameraData.Position + glm::vec3(-CameraData.Front.x, -CameraData.Front.y, CameraData.Front.z), CameraData.Up);
+  CameraData.StarMatrix = glm::rotate((glm::mediump_float)Increment++ / 10000, glm::vec3(0, 1, 0));
+  
+  CameraData.Weather = 0.7;//glm::normalize(CameraData.Weather + (std::rand() % 500)/1000 * 2);
   
   //if (anything changes)
   //  WSMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.03125));
   
-  CameraData.CSMatrix = CameraData.PerspectiveMatrix * CameraData.CameraMatrix;
+  CameraData.SSMatrix = CameraData.ShadowPerspective * CameraData.ShadowLookat;
+  CameraData.CSMatrix = CameraData.CameraPerspective * CameraData.CameraLookat;
 
   if (RendererData.DataIsReady->load() == false) {
+    std::copy(glm::value_ptr(CameraData.SSMatrix), glm::value_ptr(CameraData.SSMatrix) + 16, RendererData.SSMatrix);
     std::copy(glm::value_ptr(CameraData.CSMatrix), glm::value_ptr(CameraData.CSMatrix) + 16, RendererData.CSMatrix);
     std::copy(glm::value_ptr(CameraData.WSMatrix), glm::value_ptr(CameraData.WSMatrix) + 16, RendererData.WSMatrix);
     std::copy(glm::value_ptr(CameraData.Position), glm::value_ptr(CameraData.Position) + 3, RendererData.Position);
@@ -76,7 +86,7 @@ void client::update() {
     std::copy(glm::value_ptr(CameraData.StarMatrix), glm::value_ptr(CameraData.StarMatrix) + 16, RendererData.StarMatrix);
     std::copy(glm::value_ptr(CameraData.SunPosition), glm::value_ptr(CameraData.SunPosition) + 3, RendererData.SunPosition);
     *RendererData.Weather = CameraData.Weather;
-    *RendererData.Time = CameraData.Time;
+    *RendererData.Time = CameraData.WorldTime;
     RendererData.DataIsReady->store(true);
   }
 }
@@ -131,7 +141,7 @@ void client::updatePosition() {
   Front.z = cos(glm::radians(ClientState.Pitch)) * sin(glm::radians(ClientState.Yaw));
   CameraData.Front = glm::normalize(Front);
 
-  float CameraSpeed = 0.5; //* WindowData.DeltaTime;
+  float CameraSpeed = 0.0002 * WindowData.DeltaTime;
   //Else-if because you can't move frowards and backwards simoultaneously!
   if (ClientState.Keyboard[0])
     CameraData.Position += glm::vec3(CameraData.Front.x * CameraSpeed, 0, CameraData.Front.z * CameraSpeed);

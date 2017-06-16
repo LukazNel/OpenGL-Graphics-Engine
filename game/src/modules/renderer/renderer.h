@@ -37,6 +37,7 @@ class renderer : public module {
   };
 
   struct camerastruct {
+    float SSMatrix[16];
     float CSMatrix[16];
     float WSMatrix[16];
     float Position[3];
