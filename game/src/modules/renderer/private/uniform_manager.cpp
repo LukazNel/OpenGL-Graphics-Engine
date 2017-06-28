@@ -156,10 +156,31 @@ void uniformmanager::setDefaultParameters(const std::string TextureName, int Min
   }
 }
 
-void uniformmanager::setParameter(const std::string TextureName, GLenum Parameter, int Value) {
+void uniformmanager::setTextureParameter(const std::string TextureName, GLenum Parameter, int Value) {
   auto TextureIterator = findTexture(TextureName);
   if (TextureIterator != TextureArray.end()) {
     glTextureParameteri(TextureIterator->Handle, Parameter, Value);
+  }
+}
+
+void uniformmanager::setTextureParameter(const std::string TextureName, GLenum Parameter, float Value) {
+  auto TextureIterator = findTexture(TextureName);
+  if (TextureIterator != TextureArray.end()) {
+    glTextureParameterf(TextureIterator->Handle, Parameter, Value);
+  }
+}
+
+void uniformmanager::setTextureParameter(const std::string TextureName, GLenum Parameter, int* Values) {
+  auto TextureIterator = findTexture(TextureName);
+  if (TextureIterator != TextureArray.end()) {
+    glTextureParameteriv(TextureIterator->Handle, Parameter, Values);
+  }
+}
+
+void uniformmanager::setTextureParameter(const std::string TextureName, GLenum Parameter, float* Values) {
+  auto TextureIterator = findTexture(TextureName);
+  if (TextureIterator != TextureArray.end()) {
+    glTextureParameterfv(TextureIterator->Handle, Parameter, Values);
   }
 }
 

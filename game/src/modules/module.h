@@ -176,7 +176,7 @@ class module {
     static module* staticPointer(module* ChildPointer) {
       static module* ModulePointer;
       if (ChildPointer != nullptr)
-        ModulePointer = ChildPointer;
+        return ModulePointer = ChildPointer;
       else return ModulePointer;
     }
 /*  static void abort(int SigNum) {

@@ -97,29 +97,29 @@ void renderer::prepare() {
 }
 
 void renderer::preparePrograms() {
-  ProgramManager.createShader("intermediate/shadows.vert.glsl", GL_VERTEX_SHADER);
-  ProgramManager.createShader("intermediate/shadows.frag.glsl", GL_FRAGMENT_SHADER);
+  ProgramManager.createShader("intermediate/shadows.vert", GL_VERTEX_SHADER);
+  ProgramManager.createShader("intermediate/shadows.frag", GL_FRAGMENT_SHADER);
   ProgramManager.createProgram("Shadows");
-  ProgramManager.addShader("Shadows", "intermediate/shadows.vert.glsl", "intermediate/shadows.frag.glsl");
+  ProgramManager.addShader("Shadows", "intermediate/shadows.vert", "intermediate/shadows.frag");
   ProgramManager.linkProgram("Shadows");
 
-  ProgramManager.createShader("intermediate/main.vert.glsl", GL_VERTEX_SHADER);
-  ProgramManager.createShader("intermediate/main.frag.glsl", GL_FRAGMENT_SHADER);
+  ProgramManager.createShader("intermediate/main.vert", GL_VERTEX_SHADER);
+  ProgramManager.createShader("intermediate/main.frag", GL_FRAGMENT_SHADER);
   ProgramManager.createProgram("Main");
-  ProgramManager.addShader("Main", "intermediate/main.vert.glsl", "intermediate/main.frag.glsl");
+  ProgramManager.addShader("Main", "intermediate/main.vert", "intermediate/main.frag");
   ProgramManager.linkProgram("Main");
 
-  ProgramManager.createShader("intermediate/compute.comp.glsl", GL_COMPUTE_SHADER);
+  ProgramManager.createShader("intermediate/compute.comp", GL_COMPUTE_SHADER);
   ProgramManager.createProgram("Compute");
-  ProgramManager.addShader("Compute", "intermediate/compute.comp.glsl");
+  ProgramManager.addShader("Compute", "intermediate/compute.comp");
   ProgramManager.linkProgram("Compute");
 
-  ProgramManager.createShader("intermediate/skydome.vert.glsl", GL_VERTEX_SHADER);
-  ProgramManager.createShader("intermediate/skydome.tesc.glsl", GL_TESS_CONTROL_SHADER);
-  ProgramManager.createShader("intermediate/skydome.tese.glsl", GL_TESS_EVALUATION_SHADER);
-  ProgramManager.createShader("intermediate/skydome_fshader.glsl", GL_FRAGMENT_SHADER);
+  ProgramManager.createShader("intermediate/skydome.vert", GL_VERTEX_SHADER);
+  ProgramManager.createShader("intermediate/skydome.tesc", GL_TESS_CONTROL_SHADER);
+  ProgramManager.createShader("intermediate/skydome.tese", GL_TESS_EVALUATION_SHADER);
+  ProgramManager.createShader("intermediate/skydome.frag", GL_FRAGMENT_SHADER);
   ProgramManager.createProgram("Skydome");
-  ProgramManager.addShader("Skydome", "intermediate/skydome.vert.glsl", "intermediate/skydome.tesc.glsl", "intermediate/skydome.tese.glsl", "intermediate/skydome_fshader.glsl");
+  ProgramManager.addShader("Skydome", "intermediate/skydome.vert", "intermediate/skydome.tesc", "intermediate/skydome.tese", "intermediate/skydome.frag");
   ProgramManager.linkProgram("Skydome");
 }
 
@@ -130,7 +130,9 @@ void renderer::prepareTextures() {
   ProgramManager.installProgram("Main");
   Location = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "ShadowDepth");
   UniformManager.setBlankTexture("Shadows", GL_DEPTH_COMPONENT16, 1024, 1024, Location);
-  UniformManager.setDefaultParameters("Shadows", GL_NEAREST, GL_NEAREST, GL_REPEAT, GL_REPEAT);
+  UniformManager.setDefaultParameters("Shadows", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_BORDER, GL_CLAMP_TO_BORDER);
+  float BorderColour[] {1.0f, 1.0f, 1.0f, 1.0f};
+  UniformManager.setTextureParameter("Shadows", GL_TEXTURE_BORDER_COLOR, BorderColour);
 
   ProgramManager.installProgram("Skydome");
 

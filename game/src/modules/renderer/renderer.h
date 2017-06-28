@@ -69,7 +69,7 @@ class renderer : public module {
 
   void swapBuffers();
   friend void quitCallback(void* Pointer);
-  friend void openglCallbackFunction(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
+  friend void APIENTRY openglCallbackFunction(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
   void quit();
 
   windowstruct WindowData;

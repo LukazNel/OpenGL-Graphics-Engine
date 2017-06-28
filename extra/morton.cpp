@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstdint>
 
 uint64_t splitBy3(unsigned int a) {
     uint64_t x = a & 0x1fffff; // we only look at the first 21 bits

@@ -10,11 +10,14 @@ void logger::start() {
 }
 
 void logger::log(std::string Module, std::string String) {
-  std::cerr << std::flush << Module << " says: " << String << std::endl;
+  std::cout << std::flush << Module << " says: " << String << std::endl;
+  LogOut << std::flush << Module << " says: " << String << std::endl;
   //std::this_thread::sleep_for(std::chrono::seconds(1));
   //for (int i = 0; i < 1000; i++) {
     //continue;
   //}
 }
 
-void logger::shutDown() {}
+void logger::shutDown() {
+  LogOut.close();
+}

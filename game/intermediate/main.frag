@@ -59,8 +59,12 @@ vec3 applyLight(light Light, vec3 Normal, vec3 Position, vec3 SurfaceToCamera) {
     //shadows
     vec3 ShadowCoord = SSPosition * 0.5 + 0.5;
     float ClosestDepth = texture(ShadowDepth, ShadowCoord.xy).r;
-    float Bias = max(0.05 - dot(Normal, LightDirection), 0.005);
-    float Shadow = ShadowCoord.z - Bias > ClosestDepth ? 1 : 0;
+    float CurrentDepth = ShadowCoord.z;
+    float Shadow = 0;
+    if (CurrentDepth <= 1.0) {
+      float Bias = max(0.05 - dot(Normal, LightDirection), 0.005);
+      Shadow = CurrentDepth - Bias > ClosestDepth ? 1 : 0;
+    }
 
     //linear color (color before gamma correctioni)
     return Ambient + (1 - Shadow)*Attenuation*(Diffuse + Specular);

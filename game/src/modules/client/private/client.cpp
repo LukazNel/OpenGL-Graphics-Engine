@@ -50,7 +50,7 @@ void client::update() {
   
   if (CameraData.WorldTime > 86400)
     CameraData.WorldTime = 0;
-  CameraData.WorldTime += WindowData.DeltaTime / 1000;
+  CameraData.WorldTime += WindowData.DeltaTime / 10000;
   CameraData.SunSpherical.y = CameraData.WorldTime * 0.0333;
   CameraData.SunPosition = glm::normalize(glm::vec3(
         CameraData.SunSpherical.x * sin(glm::radians(CameraData.SunSpherical.z)) * cos(glm::radians(CameraData.SunSpherical.y)),

@@ -10,7 +10,13 @@ set(PROJECT_SRCS ${PROJECT_SOURCE_DIR}/main.cpp)
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
-add_definitions(-std=c++14 -O0)
+
+if (MINGW)
+  include_directories("/usr/i686-w64-mingw32/include")
+  set(CMAKE_CXX_FLAGS "-static")
+endif (MINGW)
+
+set(CMAKE_CXX_FLAGS "-std=c++14 -O0")
 
 add_executable(${PROJECT_NAME} ${PROJECT_SRCS})
 target_link_libraries(${PROJECT_NAME} Manager Logger Renderer Window Input Client)

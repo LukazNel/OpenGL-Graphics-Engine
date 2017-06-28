@@ -28,3 +28,9 @@ int main() {
   Manager.shutDown();
   return 0;
 }
+
+#ifdef WIN32
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* lpCmdLine, int nShowCmd) {
+    return main();
+}
+#endif
