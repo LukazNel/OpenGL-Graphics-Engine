@@ -1,3 +1,5 @@
+//Block order: {[Z, Y, X], V}
+//             {[(+-Oz)(Oz)(+-Oy)(Oy)(+-Ox)(Ox)][(+-Rz)(Rz)(+-Ry)(Ry)(+-Rx)(Rx)][I][L][C]}
 #version 450 core 
 
 #extension GL_NV_gpu_shader5 : enable
@@ -9,8 +11,16 @@ struct block {
   ivec3 Coordinates;
   vec3 Colour;
   uint Level;
+  uint Intensity;
   vec4 Quaternion;
   vec3 Offset;
+};
+
+struct light {
+   vec4 Position;
+   vec3 Colour; //a.k.a the color of the light
+   float Intensity;
+   float AmbientCoefficient;
 };
 
 layout(std140) buffer InputBuffer {
@@ -20,6 +30,11 @@ layout(std140) buffer InputBuffer {
 layout(std430) buffer StorageBuffer {
   block BlockArray[]; // (60MB)
 } BufferOut;
+
+layout(binding = 0) uniform atomic_uint LightCount;
+layout(std430) buffer LightBuffer {
+  light LightArray[];
+};
 
 layout(std140) uniform ColourUniform {
   vec3 ColourArray[1022];
@@ -84,25 +99,24 @@ void main(void) {
 
   if ((bool)(Coordinates & 0x1)) {
     Coordinates >>= 1;
-    Info >>= 1;
     
-    DecodedBlock.Coordinates.x = (int)(Coordinates & 0x1FFFFF);
-    if ((bool)(Info & 0x1))
+    DecodedBlock.Coordinates.x = (int)(Coordinates & 0xFFFFF);
+    Coordinates >>= 20;
+    if ((bool)(Coordinates & 0x1))
       DecodedBlock.Coordinates.x *= -1;
-    Coordinates >>= 21;
-    Info >>= 1;
+    Coordinates >>= 1;
 
-    DecodedBlock.Coordinates.y = (int)(Coordinates & 0x1FFFFF);
-    if ((bool)(Info & 0x1))
+    DecodedBlock.Coordinates.y = (int)(Coordinates & 0xFFFFF);
+    Coordinates >>= 20;
+    if ((bool)(Coordinates & 0x1))
       DecodedBlock.Coordinates.y *= -1;
-    Coordinates >>= 21;
-    Info >>= 1;
+    Coordinates >>= 1;
 
-    DecodedBlock.Coordinates.z = (int)(Coordinates & 0x1FFFFF);
-    if ((bool)(Info & 0x1))
+    DecodedBlock.Coordinates.z = (int)(Coordinates & 0xFFFFF);
+    Coordinates >>= 20;
+    if ((bool)(Coordinates & 0x1))
       DecodedBlock.Coordinates.z *= -1;
-    //Coordinates >>= 21;
-    Info >>= 1;
+    Coordinates >>= 1;
 
     uint64_t MortonIndex = mortonEncode_magicbits(((uint)DecodedBlock.Coordinates.x * 2), ((uint)DecodedBlock.Coordinates.y * 2), ((uint)DecodedBlock.Coordinates.z * 2)); // Times two because negative is removed.
 
@@ -110,22 +124,30 @@ void main(void) {
     Info >>= 10;
     DecodedBlock.Level = (uint)(Info & 0x3);
     Info >>= 2;
+    DecodedBlock.Intensity = (uint)((uint)(Info & 0x7F)); // Intensity is in percentage!
+    Info >>= 7;
+
+    if (DecodedBlock.Level == 1) {
+      uint Count = atomicCounterIncrement(LightCount);
+      light Light = {vec4(DecodedBlock.Coordinates, 1), DecodedBlock.Colour, DecodedBlock.Intensity / 100, 0.0005};
+      LightArray[Count] = Light;
+    }
 
     vec3 Rotation;
-    Rotation.x = (int)(Info & 0x7F);
-    Info >>= 7;
+    Rotation.x = (int)(Info & 0x3F);
+    Info >>= 6;
     if ((bool)(Info & 0x1))
       Rotation.x *= -1;
     Info >>= 1;
 
-    Rotation.y = (int)(Info & 0x7F);
-    Info >>= 7;
+    Rotation.y = (int)(Info & 0x3F);
+    Info >>= 6;
     if ((bool)(Info & 0x1))
       Rotation.y *= -1;
     Info >>= 1;
 
-    Rotation.z = (int)(Info & 0x7F);
-    Info >>= 7;
+    Rotation.z = (int)(Info & 0x3F);
+    Info >>= 6;
     if ((bool)(Info & 0x1))
       Rotation.z *= -1;
     Info >>= 1;
@@ -137,19 +159,19 @@ void main(void) {
     vec4 Quaternion = qMultiply(QuaternionX, qMultiply(QuaternionY, QuaternionZ));
     DecodedBlock.Quaternion = Quaternion;
 
-    DecodedBlock.Offset.x = (float)(Info & 0x7F) / 100;
+    DecodedBlock.Offset.x = (float)(int(Info & 0x7F) / 100);
     Info >>= 7;
     if ((bool)(Info & 0x1))
       DecodedBlock.Offset.x *= -1;
     Info >>= 1;
 
-    DecodedBlock.Offset.y = (float)(Info & 0x7F) / 100;
+    DecodedBlock.Offset.y = (float)(int(Info & 0x7F) / 100);
     Info >>= 7;
     if ((bool)(Info & 0x1))
       DecodedBlock.Offset.y *= -1;
     Info >>= 1;
 
-    DecodedBlock.Offset.z = (float)(Info & 0x7F) / 100;
+    DecodedBlock.Offset.z = (float)(int(Info & 0x7F) / 100);
     Info >>= 7;
     if ((bool)(Info & 0x1))
       DecodedBlock.Offset.z *= -1;

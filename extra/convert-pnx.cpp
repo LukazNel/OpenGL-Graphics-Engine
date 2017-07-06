@@ -3,7 +3,7 @@
 #include <vector>
 #include <algorithm>
 #include <string>
-#include <cstdint>
+#include "block_encode.h"
 
 #include "../game/src/external/include/stb_image.h"
 
@@ -29,15 +29,6 @@ struct voxelobject {
   std::vector<layer> Layers;  
 };
 
-struct block {
-  int Coordinates[3];
-  unsigned int Colour;
-  unsigned int Level;
-  int Rotation[3];
-  float Offset[3];
-};
-
-void encode(block Block, uint64_t (&Output)[2]);
 int findColour(std::vector<unsigned char> InputColour);
 
 int main(int argc, char* argv[])  {
@@ -68,12 +59,11 @@ int main(int argc, char* argv[])  {
     File.read((char*)&Length, sizeof(int));
     std::vector<char> Image(Length);
     File.read(Image.data(), sizeof(unsigned char) * Length);
-    std::string ImageName = "pnx_images/image" + std::to_string(i) + ".png";
-    std::ofstream Out(ImageName);
+    std::ofstream Out("pnx_image.png", std::ios::trunc);
     Out.write(Image.data(), Image.size());
     Out.close();
     image PostImage;
-    unsigned char* Raw = stbi_load(ImageName.c_str(), &PostImage.Width, &PostImage.Height, nullptr, 4);
+    unsigned char* Raw = stbi_load("pnx_image.png", &PostImage.Width, &PostImage.Height, nullptr, 4);
     if (PostImage.Width == 0 || PostImage.Height == 0) {
       std::cout << "Error occurred\n";
       std::exit(EXIT_FAILURE);
@@ -116,6 +106,19 @@ int main(int argc, char* argv[])  {
       File.read((char*)&Layer.Corner[i], sizeof(int));
 
     int Level = 0;
+    int Intensity = 0;
+    if (Layer.Name.compare("Layer") == 0) {
+      Level = 0;
+      Intensity = 0;
+      std::cout << "Registered layer with Level 0, Intensity 0" << std::endl;
+    } else if (Layer.Name.compare("Level ") > 0) {
+        Level = std::stoi(Layer.Name.erase(0, 6));
+        if (Layer.Name.size() > 12 and Layer.Name.compare(2, 10, "Intensity ") == 0) {
+          Intensity = std::stoi(Layer.Name.erase(0, 12));
+          std::cout << "Registered layer with Level " << Level << ", Intensity " << Intensity << std::endl;
+        } else std::cout << "Registered layer with Level " << Level << ", Intensity 0" << std::endl;
+    }
+    else std::cout << "Warning: Layer not named according to standard (" << Layer.Name << ")" << std::endl;
     for (int x = Layer.Size[0] + Layer.Corner[0] - 1; x > Layer.Corner[0] - 1; x--) {
       int ImageID = 0;
       File.read((char*)&ImageID, sizeof(int));
@@ -123,10 +126,11 @@ int main(int argc, char* argv[])  {
         for (int y = 0; y < Layer.Size[1]; y++) {
           for (int w = 0; w < Enlarge; w++) {
             if (VoxelObject.Images[ImageID].ColourID.at(z).at(y) != -1) {
-              block Block {{x, 1 - y + Layer.Corner[1], 1 - z + Layer.Corner[2]}, 
-  VoxelObject.Images[ImageID].ColourID[z][y], Level, {0, 0, 0}, {0, 0, 0}};
+              block Block {{x, -(y + Layer.Corner[1]), -(z + Layer.Corner[2])}, 
+  VoxelObject.Images[ImageID].ColourID[z][y], Level, Intensity, {0, 0, 0}, {0, 0, 0}};
+              std::cout << Block.Coordinates[0] << ' ' << Block.Coordinates[1] << ' ' << Block.Coordinates[2] << std::endl;
               uint64_t Answer[2] = {0, 0};
-              encode(Block, Answer);
+              blockEncode(Block, Answer);
               FileOut.write((char*)Answer, 16);
             }
           }
@@ -156,46 +160,4 @@ int findColour(std::vector<unsigned char> InputColour) {
           return Colour == InputColour;
         }));
   return Index;
-}
-
-void encode(block Block, uint64_t (&Output)[2]) {
-  int Shift = 0;
-
-  Shift = 1 - 21;
-  for (int i = 0; i < 3; i++) {
-    Shift += 21;
-    if (Block.Coordinates[i] < 0) {
-      Output[1] |= 0x1 << (i + 1);
-      Block.Coordinates[i] *= -1;
-    }
-    Output[0] |= ((uint64_t)Block.Coordinates[i] & 0x1FFFFF) << Shift;
-  }
-
-  Output[0] |= 0x1;
-  Output[1] |= (Block.Colour & 0x3FF) << 4;
-  Output[1] |= (Block.Level & 0x3) << 14;
-
-  Shift = 16;
-  for (int i = 0; i < 3; i++) {
-    unsigned int RotateVar = 0;
-    if (Block.Rotation[i] < 0) {
-      RotateVar |= 0x1 << 7;
-      Block.Rotation[i] *= -1;
-    }
-    RotateVar |= (Block.Rotation[i] & 0x7F);
-    Output[1] |= ((uint64_t)RotateVar << Shift);
-    Shift += 8;
-  }
-
-  Shift = 40;
-  for (int i = 0; i < 3; i++) {
-    unsigned int OffsetVar = 0;
-    if (Block.Offset[i] < 0) {
-      OffsetVar |= 0x1 << 7;
-      Block.Offset[i] *= -1;
-    }
-    OffsetVar |= ((int)(Block.Offset[i] * 100) & 0x7F);
-    Output[1] |= ((uint64_t)OffsetVar << Shift);
-    Shift += 8;
-  }  
 }

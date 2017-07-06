@@ -14,10 +14,11 @@ class buffermanager {
 
   template<typename ...args>
     void createBuffers(int Amount, const std::string BufferName, args... Arguments) {
-      GLuint Buffers[Amount];
+      GLuint* Buffers = new GLuint[Amount];
       //glGenBuffers(Amount, Buffers);
       glCreateBuffers(Amount, Buffers);
       createBufferHelper(Buffers, Amount, BufferName, Arguments...);
+      delete [] Buffers;
     }
 
   void setBuffer(const std::string BufferName, const GLenum BufferType, int Size, const void* Data, GLbitfield Usage);
@@ -31,10 +32,11 @@ class buffermanager {
 
   template<typename ...args>
     void createRenderBuffers(int Amount, const std::string RenderBufferName, args... Arguments) {
-      GLuint RenderBuffers[Amount];
+      GLuint* RenderBuffers = new GLuint[Amount];
       //glGenRenderBuffers(Amount, RenderBuffers);
       glCreateRenderbuffers(Amount, RenderBuffers);
       createRenderBufferHelper(RenderBuffers, Amount, RenderBufferName, Arguments...);
+      delete [] RenderBuffers;
     }
 
   void setRenderBuffer(const std::string RenderBufferName, int Samples, GLenum InternalFormat, int Width, int Height);
@@ -43,15 +45,19 @@ class buffermanager {
 
   template<typename ...args>
     void createFrameBuffers(int Amount, const std::string FrameBufferName, args... Arguments) {
-      GLuint FrameBuffers[Amount];
+      GLuint* FrameBuffers = new GLuint[Amount];
       //glGenFrameBuffers(Amount, FrameBuffers);
       glCreateFramebuffers(Amount, FrameBuffers);
       createFrameBufferHelper(FrameBuffers, Amount, FrameBufferName, Arguments...);
+      delete [] FrameBuffers;
     }
 
   void setFrameBuffer(const std::string FrameBufferName, const std::string RenderBufferName);
   void setFrameBuffer(const std::string FrameBufferName, GLenum Attachment, GLuint TextureHandle, int Level);
   void setFrameBuffer(const std::string FrameBufferName, GLenum Attachment, GLuint TextureHandle, int Level, int Layer);
+  void setDrawBuffer(const std::string FrameBufferName, GLenum DrawBuffer);
+  void setDrawBuffer(const std::string FrameBufferName, int Size, GLenum* DrawBuffer);
+  void setReadBuffer(const std::string FrameBufferName, GLenum ReadBuffer);
   void checkFrameBuffer(std::string Framebuffer); // INCOMPLETE!!
   void bindFrameBuffer(const std::string FrameBufferName, GLenum FrameBufferType);
 

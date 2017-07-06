@@ -9,7 +9,7 @@
 #include "modules/input/input.h"
 #include "modules/client/client.h"
 
-int main() {
+int main(int argc, char* argv[]) {
   manager Manager;
   std::unique_ptr<module> Logger(new logger);
   std::unique_ptr<module> Window(new window);
@@ -28,9 +28,3 @@ int main() {
   Manager.shutDown();
   return 0;
 }
-
-#ifdef WIN32
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* lpCmdLine, int nShowCmd) {
-    return main();
-}
-#endif

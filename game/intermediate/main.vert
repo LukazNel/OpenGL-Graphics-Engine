@@ -8,6 +8,7 @@ struct block {
   ivec3 Coordinates;
   vec3 Colour;
   uint Level;
+  uint Intensity;
   vec4 Quaternion;
   vec3 Offset;
 };
@@ -21,8 +22,9 @@ out vec3 WSPosition;
 out vec3 Colour;
 out vec3 WSNormal;
 flat out uint Level;
+flat out uint Intensity;
 
-vec3 ExpandArray[36] = {
+const vec3 ExpandArray[36] = {
   {-0.5, 0.5, 0.5}, {0.5, 0.5, 0.5}, {-0.5, -0.5, 0.5}, {0.5, 0.5, 0.5}, {0.5, -0.5, 0.5}, {-0.5, -0.5, 0.5}, //Front
   {0.5, 0.5, 0.5}, {0.5, 0.5, -0.5}, {0.5, -0.5, 0.5}, {0.5, 0.5, -0.5}, {0.5, -0.5, -0.5}, {0.5, -0.5, 0.5}, //Right
   {0.5, 0.5, -0.5}, {-0.5, 0.5, -0.5}, {0.5, -0.5, -0.5}, {-0.5, 0.5, -0.5}, {-0.5, -0.5, -0.5}, {0.5, -0.5, -0.5}, //Back
@@ -31,7 +33,7 @@ vec3 ExpandArray[36] = {
   {-0.5, -0.5, 0.5}, {0.5, -0.5, 0.5}, {-0.5, -0.5, -0.5}, {0.5, -0.5, 0.5}, {0.5, -0.5, -0.5}, {-0.5, -0.5, -0.5} //Bottom
 };
 
-vec3 NormalArray[6] = {
+const vec3 NormalArray[6] = {
   {0, 0, 1}, //Front
   {1, 0, 0}, //Right
   {0, 0, -1}, //Back
@@ -57,4 +59,5 @@ void main() {
   vec3 Normal = NormalArray[int(VertexID / 6)];
   WSNormal = normalize(transpose(inverse(mat3(WSMatrix))) * (Normal + (2 * cross(Block.Quaternion.xyz, (cross(Block.Quaternion.xyz, Normal) + Block.Quaternion.w * Normal)))));
   Level = Block.Level;
+  Intensity = Block.Intensity;
 }

@@ -87,7 +87,7 @@ void programmanager::setBinding(const std::string ProgramName, GLenum ResourceTy
       glUniformBlockBinding(ProgramIterator->Handle, glGetProgramResourceIndex(ProgramIterator->Handle, ResourceType, ResourceName.c_str()), BindingPoint);
     else if (ResourceType == GL_SHADER_STORAGE_BLOCK)
       glShaderStorageBlockBinding(ProgramIterator->Handle, glGetProgramResourceIndex(ProgramIterator->Handle, ResourceType, ResourceName.c_str()), BindingPoint);
-    else LogString += "Warning: Cannot bind resource '" + ResourceName + "': incompatible type.";
+    else LogString += "Warning: Cannot bind resource '" + ResourceName + "': incompatible type.\n";
       LogString += "Resource " + ResourceName + " in program '" + ProgramName + "' bound to binding point " + std::to_string(BindingPoint) + ".\n";
       glUseProgram(0);
   }
@@ -147,9 +147,10 @@ void programmanager::logShader(const GLuint& ShaderHandle, const GLenum ShaderTy
     LogString += "Compilation Successful.\n";
     return;
   } else {
-    GLchar LogChar[LogSize];
+    GLchar* LogChar = new GLchar[LogSize];
     glGetShaderInfoLog(ShaderHandle, LogSize, nullptr, LogChar);
     LogString += '\n' + LogChar + '\n';
+    delete [] LogChar;
   }
 }
 
@@ -160,9 +161,10 @@ void programmanager::logProgram(const GLuint& ProgramHandle) {
     LogString += "Linking Successful.\n";
     return;
   } else {
-    GLchar LogChar[LogSize];
+    GLchar* LogChar = new GLchar[LogSize];
     glGetProgramInfoLog(ProgramHandle, LogSize, nullptr, LogChar);
     LogString += '\n' + LogChar + '\n';
+    delete [] LogChar;
     //Quit(nullptr);
   }
 }

@@ -34,7 +34,7 @@ class renderer : public module {
     int WindowHeight;
     int WindowWidth;
     std::atomic<bool> DataIsReady;
-  };
+  } WindowData;
 
   struct camerastruct {
     float SSMatrix[16];
@@ -48,17 +48,23 @@ class renderer : public module {
     float Weather;
     float Time;
     std::atomic<bool> DataIsReady;
+  } NewCameraData, CurrentCameraData;
+
+  struct buffer {
+    int Bytes;
+    int Blocks;
   };
 
-  struct encoderstruct {
+  struct blockstruct {
     int DispatchSize[3];
     int DispatchVolume;
-    int BufferSizeBlocks;
-    int BufferSizeBytes;
-    int Offset;
+    buffer InputBuffer;
+    buffer StorageBuffer;
+    buffer LightBuffer;
+    int ComputeShaderOffset;
     GLsync SyncObject;
     std::ifstream FileIn;
-  };
+  } BlockData;
 
   void preparePrograms();
   void prepareTextures();
@@ -72,10 +78,6 @@ class renderer : public module {
   friend void APIENTRY openglCallbackFunction(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
   void quit();
 
-  windowstruct WindowData;
-  camerastruct CurrentCameraData;
-  camerastruct NewCameraData;
-  encoderstruct EncoderData;
   programmanager ProgramManager;
   buffermanager BufferManager;
   uniformmanager UniformManager;

@@ -7,6 +7,7 @@ struct block {
   ivec3 Coordinates;
   vec3 Colour;
   uint Level;
+  uint Intensity;
   vec4 Quaternion;
   vec3 Offset;
 };
@@ -15,7 +16,7 @@ layout(std430) buffer StorageBuffer {
   block BlockArray[]; // 1000000
 } BufferIn;
 
-vec3 ExpandArray[36] = {
+const vec3 ExpandArray[36] = {
   {-0.5, 0.5, 0.5}, {0.5, 0.5, 0.5}, {-0.5, -0.5, 0.5}, {0.5, 0.5, 0.5}, {0.5, -0.5, 0.5}, {-0.5, -0.5, 0.5}, //Front
   {0.5, 0.5, 0.5}, {0.5, 0.5, -0.5}, {0.5, -0.5, 0.5}, {0.5, 0.5, -0.5}, {0.5, -0.5, -0.5}, {0.5, -0.5, 0.5}, //Right
   {0.5, 0.5, -0.5}, {-0.5, 0.5, -0.5}, {0.5, -0.5, -0.5}, {-0.5, 0.5, -0.5}, {-0.5, -0.5, -0.5}, {0.5, -0.5, -0.5}, //Back
@@ -24,7 +25,7 @@ vec3 ExpandArray[36] = {
   {-0.5, -0.5, 0.5}, {0.5, -0.5, 0.5}, {-0.5, -0.5, -0.5}, {0.5, -0.5, 0.5}, {0.5, -0.5, -0.5}, {-0.5, -0.5, -0.5} //Bottom
 };
 
-vec3 NormalArray[6] = {
+const vec3 NormalArray[6] = {
   {0, 0, 1}, //Front
   {1, 0, 0}, //Right
   {0, 0, -1}, //Back

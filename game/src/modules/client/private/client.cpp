@@ -1,7 +1,7 @@
 #include "client.h"
 
 client::client() {
-  CameraData.ShadowPerspective = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 7.5f);
+  CameraData.ShadowPerspective = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, -10.0f, 20.0f);
   CameraData.WSMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.0625)); // or 0.03125
   CameraData.Position = {0, 10, 0};
   CameraData.Front = {0, 0, -1};

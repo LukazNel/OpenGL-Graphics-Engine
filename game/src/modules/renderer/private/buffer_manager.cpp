@@ -123,6 +123,27 @@ void buffermanager::setFrameBuffer(const std::string FrameBufferName, GLenum Att
   }
 }
   
+void buffermanager::setDrawBuffer(const std::string FrameBufferName, GLenum DrawBuffer) {
+  auto FrameBufferIterator = findFrameBuffer(FrameBufferName);
+  if (FrameBufferIterator != FrameBufferArray.end()) {
+    glNamedFramebufferDrawBuffer(FrameBufferIterator->Handle, DrawBuffer);
+  }
+}
+ 
+void buffermanager::setDrawBuffer(const std::string FrameBufferName, int Size, GLenum* DrawBuffer) {
+  auto FrameBufferIterator = findFrameBuffer(FrameBufferName);
+  if (FrameBufferIterator != FrameBufferArray.end()) {
+    glNamedFramebufferDrawBuffers(FrameBufferIterator->Handle, Size, DrawBuffer);
+  }
+}
+  
+void buffermanager::setReadBuffer(const std::string FrameBufferName, GLenum ReadBuffer) {
+  auto FrameBufferIterator = findFrameBuffer(FrameBufferName);
+  if (FrameBufferIterator != FrameBufferArray.end()) {
+    glNamedFramebufferReadBuffer(FrameBufferIterator->Handle, ReadBuffer);
+  }
+}
+  
 //!-- INCOMPLETE --!//
 void buffermanager::checkFrameBuffer(const std::string FrameBufferName) {
   auto FrameBufferIterator = findFrameBuffer(FrameBufferName);

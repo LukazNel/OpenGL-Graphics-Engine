@@ -20,9 +20,10 @@ class uniformmanager {
 
   template<typename ...args>
     void createTextures(GLenum Type, int Amount, const std::string TextureName, args... Arguments) {
-      GLuint Textures[Amount];
+      GLuint* Textures = new GLuint[Amount];
       glCreateTextures(Type, Amount, Textures);
       createTextureHelper(Textures, Amount, TextureName, Arguments...);
+      delete [] Textures;
     }
 
   void setTexture(std::string TextureName, std::string ImageName, GLuint UniformLocation);
