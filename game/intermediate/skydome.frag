@@ -13,7 +13,8 @@ uniform sampler2D clouds2;//heavy clouds texture (spherical UV projection)
 uniform float weather;//mixing factor (0.5 to 1.0)
 uniform float time;
 //---------OUT------------
-out vec3 color;
+layout(location = 0) out vec4 FinalColour;
+layout(location = 1) out vec4 BrightColour;
 
 //---------NOISE GENERATION------------
 //Noise generation based on a simple hash, to ensure that if a given point on the dome
@@ -30,6 +31,7 @@ float Noise3d( vec3 x ){
 
 //---------MAIN------------
 void main(){
+    vec3 color;
     vec3 pos_norm = normalize(pos);
     float dist = dot(sun_norm,pos_norm);
 
@@ -98,5 +100,6 @@ void main(){
     //Final mix
     //mixing with the cloud color allows us to hide things behind clouds (sun, stars, moon)
     color = mix(color,cloud_color,clamp((2-weather)*transparency,0,1));
-
+    FinalColour = vec4(color, 1);
+    BrightColour = vec4(0);
 }

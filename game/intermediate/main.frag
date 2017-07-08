@@ -92,7 +92,7 @@ void main() {
       for(int i = 0; i < atomicCounter(LightCount); ++i) {
         LinearColour += applyLight(LightArray[i], WSNormal, WSPosition, SurfaceToCamera);
       }
-      BrightColour = vec4(0, 0, 0, 1);
+      BrightColour = vec4(0);
     }  else {
       LinearColour = Colour;
       BrightColour = vec4(Colour, 1);

@@ -35,7 +35,9 @@ class uniformmanager {
   void setTextureParameter(const std::string TextureName, GLenum Parameter, float Value);
   void setTextureParameter(const std::string TextureName, GLenum Parameter, int* Values);
   void setTextureParameter(const std::string TextureName, GLenum Parameter, float* Values);
+  void setTextureUnit(std::string TextureName, GLuint TextureUnit);
   GLuint getTexture(std::string TextureName);
+  GLuint getTextureUnit(std::string TextureName);
 
   std::string getLog();
   void cleanUp();
@@ -54,6 +56,7 @@ class uniformmanager {
   struct texture {
     std::string Name;
     GLuint Handle;
+    GLuint Unit;
   };
 
   template<typename ...args>

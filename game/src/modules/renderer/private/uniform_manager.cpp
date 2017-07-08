@@ -90,11 +90,11 @@ void uniformmanager::setTexture(std::string TextureName, std::string ImageName, 
   auto TextureIterator = findTexture(TextureName);
   if (TextureIterator != TextureArray.end()) {
     int Width, Height, Channels;
-    int TextureUnit = ++TextureCount;
+    TextureIterator->Unit = ++TextureCount;
     unsigned char* Image = stbi_load(ImageName.c_str(), &Width, &Height, &Channels, 0);
     if (Image != nullptr) {
       LogString += "Loading Image '" + ImageName + "': Width " + std::to_string(Width) + ", Height " + std::to_string(Height) + " with " + std::to_string(Channels) + " channels.\n";
-      glBindTextureUnit(TextureUnit, TextureIterator->Handle);
+      glBindTextureUnit(TextureIterator->Unit, TextureIterator->Handle);
       if (Channels == 4) {
         glTextureStorage2D(TextureIterator->Handle, 1, GL_RGBA8, Width, Height);
         glTextureSubImage2D(TextureIterator->Handle, 0, 0, 0, Width, Height, GL_RGBA, GL_UNSIGNED_BYTE, Image);
@@ -106,7 +106,7 @@ void uniformmanager::setTexture(std::string TextureName, std::string ImageName, 
         return;
       }
       LogString += "Image '" + ImageName + "' loaded into texture '" + TextureName + "'.\n";
-      glUniform1i(UniformLocation, TextureUnit);
+      glUniform1i(UniformLocation, TextureIterator->Unit);
 
     } else LogString += "Warning: Cannot load image '" + ImageName + "' into texture '" + TextureName + "': File not found.\n";
     stbi_image_free(Image);
@@ -116,11 +116,11 @@ void uniformmanager::setTexture(std::string TextureName, std::string ImageName, 
 void uniformmanager::setBlankTexture(std::string TextureName, GLenum InternalFormat, int Width, int Height, GLint UniformLocation) {
   auto TextureIterator = findTexture(TextureName);
   if (TextureIterator != TextureArray.end()) {
-    int TextureUnit = ++TextureCount;
-    glBindTextureUnit(TextureUnit, TextureIterator->Handle);
+    TextureIterator->Unit = ++TextureCount;
+    glBindTextureUnit(TextureIterator->Unit, TextureIterator->Handle);
     glTextureStorage2D(TextureIterator->Handle, 1, InternalFormat, Width, Height);
     if (UniformLocation != -1)
-      glUniform1i(UniformLocation, TextureUnit);
+      glUniform1i(UniformLocation, TextureIterator->Unit);
     LogString += "Blank texture '" + TextureName + "' set.\n";
   }
 }
@@ -128,10 +128,10 @@ void uniformmanager::setBlankTexture(std::string TextureName, GLenum InternalFor
 void uniformmanager::setImageTexture(std::string TextureName, GLuint UniformLocation, GLenum InternalFormat, int Width, int Height) {
   auto TextureIterator = findTexture(TextureName);
   if (TextureIterator != TextureArray.end()) {
-    int ImageUnit = ++ImageCount;
-    glBindImageTexture(ImageUnit, TextureIterator->Handle, 0, GL_FALSE, 0, GL_READ_WRITE, InternalFormat);
+    TextureIterator->Unit = ++ImageCount;
+    glBindImageTexture(TextureIterator->Unit, TextureIterator->Handle, 0, GL_FALSE, 0, GL_READ_WRITE, InternalFormat);
     glTextureStorage2D(TextureIterator->Handle, 1, InternalFormat, Width, Height);
-    glUniform1i(UniformLocation, ImageUnit);
+    glUniform1i(UniformLocation, TextureIterator->Unit);
     LogString += "Image texture '" + TextureName + "' set.\n";
   }
 }
@@ -139,8 +139,8 @@ void uniformmanager::setImageTexture(std::string TextureName, GLuint UniformLoca
 void uniformmanager::setMultisampleTexture(std::string TextureName, int Samples, GLenum InternalFormat, int Width, int Height, bool FixedSamples) {
   auto TextureIterator = findTexture(TextureName);
   if (TextureIterator != TextureArray.end()) {
-    int TextureUnit = ++TextureCount;
-    glBindTextureUnit(TextureUnit, TextureIterator->Handle);
+    TextureIterator->Unit = ++TextureCount;
+    glBindTextureUnit(TextureIterator->Unit, TextureIterator->Handle);
     glTextureStorage2DMultisample(TextureIterator->Handle, Samples, InternalFormat, Width, Height, FixedSamples);
     LogString += "Multisample texture '" + TextureName + "' set.\n";
   }
@@ -184,10 +184,25 @@ void uniformmanager::setTextureParameter(const std::string TextureName, GLenum P
   }
 }
 
+void uniformmanager::setTextureUnit(std::string TextureName, GLuint TextureUnit) {
+  auto TextureIterator = findTexture(TextureName);
+  if (TextureIterator != TextureArray.end()) {
+    TextureIterator->Unit = TextureUnit;
+    glBindTextureUnit(TextureIterator->Unit, TextureIterator->Handle);
+  }
+}
+
 GLuint uniformmanager::getTexture(std::string TextureName) {
   auto TextureIterator = findTexture(TextureName);
   if (TextureIterator != TextureArray.end()) {
     return TextureIterator->Handle;
+  }
+}
+
+GLuint uniformmanager::getTextureUnit(std::string TextureName) {
+  auto TextureIterator = findTexture(TextureName);
+  if (TextureIterator != TextureArray.end()) {
+    return TextureIterator->Unit;
   }
 }
 
