@@ -92,96 +92,63 @@ void renderer::prepare() {
 }
 
 void renderer::preparePrograms() {
+  ProgramManager.createShader("intermediate/pass.vert", GL_VERTEX_SHADER);
+
   ProgramManager.createShader("intermediate/compute.comp", GL_COMPUTE_SHADER);
   ProgramManager.createProgram("Compute");
   ProgramManager.addShader("Compute", "intermediate/compute.comp");
   ProgramManager.linkProgram("Compute");
 
-  ProgramManager.createShader("intermediate/shadows.vert", GL_VERTEX_SHADER);
-  ProgramManager.createShader("intermediate/shadows.frag", GL_FRAGMENT_SHADER);
-  ProgramManager.createProgram("Shadows");
-  ProgramManager.addShader("Shadows", "intermediate/shadows.vert", "intermediate/shadows.frag");
-  ProgramManager.linkProgram("Shadows");
+  ProgramManager.createShader("intermediate/geometry.vert", GL_VERTEX_SHADER);
+  ProgramManager.createShader("intermediate/geometry.frag", GL_FRAGMENT_SHADER);
+  ProgramManager.createProgram("GeometryPass");
+  ProgramManager.addShader("GeometryPass", "intermediate/geometry.vert", "intermediate/geometry.frag");
+  ProgramManager.linkProgram("GeometryPass");
 
-  ProgramManager.createShader("intermediate/main.vert", GL_VERTEX_SHADER);
-  ProgramManager.createShader("intermediate/main.frag", GL_FRAGMENT_SHADER);
-  ProgramManager.createProgram("Main");
-  ProgramManager.addShader("Main", "intermediate/main.vert", "intermediate/main.frag");
-  ProgramManager.linkProgram("Main");
+  ProgramManager.createShader("intermediate/light.frag", GL_FRAGMENT_SHADER);
+  ProgramManager.createProgram("LightPass");
+  ProgramManager.addShader("LightPass", "intermediate/pass.vert", "intermediate/light.frag");
+  ProgramManager.linkProgram("LightPass");
 
-  ProgramManager.createShader("intermediate/skydome.vert", GL_VERTEX_SHADER);
-  ProgramManager.createShader("intermediate/skydome.tesc", GL_TESS_CONTROL_SHADER);
-  ProgramManager.createShader("intermediate/skydome.tese", GL_TESS_EVALUATION_SHADER);
-  ProgramManager.createShader("intermediate/skydome.frag", GL_FRAGMENT_SHADER);
-  ProgramManager.createProgram("Skydome");
-  ProgramManager.addShader("Skydome", "intermediate/skydome.vert", "intermediate/skydome.tesc", "intermediate/skydome.tese", "intermediate/skydome.frag");
-  ProgramManager.linkProgram("Skydome");
-
-  ProgramManager.createShader("intermediate/texture_pass.vert", GL_VERTEX_SHADER);
   ProgramManager.createShader("intermediate/bloom.frag", GL_FRAGMENT_SHADER);
-  ProgramManager.createProgram("Bloom");
-  ProgramManager.addShader("Bloom", "intermediate/texture_pass.vert", "intermediate/bloom.frag");
-  ProgramManager.linkProgram("Bloom");
+  ProgramManager.createProgram("BloomPass");
+  ProgramManager.addShader("BloomPass", "intermediate/pass.vert", "intermediate/bloom.frag");
+  ProgramManager.linkProgram("BloomPass");
 
-  ProgramManager.createShader("intermediate/texture_pass.frag", GL_FRAGMENT_SHADER);
-  ProgramManager.createProgram("TexturePass");
-  ProgramManager.addShader("TexturePass", "intermediate/texture_pass.vert", "intermediate/texture_pass.frag");
-  ProgramManager.linkProgram("TexturePass");
+  ProgramManager.createShader("intermediate/tone.frag", GL_FRAGMENT_SHADER);
+  ProgramManager.createProgram("TonePass");
+  ProgramManager.addShader("TonePass", "intermediate/pass.vert", "intermediate/tone.frag");
+  ProgramManager.linkProgram("TonePass");
 }
 
 void renderer::prepareTextures() {
   GLint Location;
-  UniformManager.createTextures(GL_TEXTURE_2D, 12, "Shadows", "Tint1", "Tint2", "Sun", "Moon", "Clouds1", "Clouds2", "MainPass", "BrightColour", "BloomVertical", "BloomHorizontal");
+  UniformManager.createTextures(GL_TEXTURE_2D, 7, "gPosition", "gNormal", "gColour", "lColour", "lBloom", "BloomVertical", "BloomHorizontal");
  
-  ProgramManager.installProgram("Main");
-  Location = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "ShadowDepth");
-  UniformManager.setBlankTexture("Shadows", GL_DEPTH_COMPONENT16, 1024, 1024, Location);
-  UniformManager.setDefaultParameters("Shadows", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_BORDER, GL_CLAMP_TO_BORDER);
-  float BorderColour[] {1.0f, 1.0f, 1.0f, 1.0f};
-  UniformManager.setTextureParameter("Shadows", GL_TEXTURE_BORDER_COLOR, BorderColour);
+  ProgramManager.installProgram("LightPass");
+  Location = ProgramManager.getResourceLocation("LightPass", GL_UNIFORM, "gPosition");
+  UniformManager.setBlankTexture("gPosition", GL_RGB8, WindowData.WindowWidth, WindowData.WindowHeight, Location);
+  UniformManager.setDefaultParameters("gPosition", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+  Location = ProgramManager.getResourceLocation("LightPass", GL_UNIFORM, "gNormal");
+  UniformManager.setBlankTexture("gNormal", GL_RGB8, WindowData.WindowWidth, WindowData.WindowHeight, Location);
+  UniformManager.setDefaultParameters("gNormal", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+  Location = ProgramManager.getResourceLocation("LightPass", GL_UNIFORM, "gColour");
+  UniformManager.setBlankTexture("gColour", GL_RGBA8, WindowData.WindowWidth, WindowData.WindowHeight, Location);
+  UniformManager.setDefaultParameters("gColour", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
-  ProgramManager.installProgram("Skydome");
+  UniformManager.setBlankTexture("lBloom", GL_RGB8, WindowData.WindowWidth, WindowData.WindowHeight, -1);
+  UniformManager.setDefaultParameters("lBloom", GL_LINEAR, GL_LINEAR, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "tint");
-  UniformManager.setTexture("Tint1", "content/skydome/tint.tga", Location);
-  UniformManager.setDefaultParameters("Tint1", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
-
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "tint1");
-  UniformManager.setTexture("Tint2", "content/skydome/tint2.tga", Location);
-  UniformManager.setDefaultParameters("Tint2", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
-
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "sun");
-  UniformManager.setTexture("Sun", "content/skydome/sun.tga", Location);
-  UniformManager.setDefaultParameters("Sun", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
-
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "moon");
-  UniformManager.setTexture("Moon", "content/skydome/moon.tga", Location);
-  UniformManager.setDefaultParameters("Moon", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
-
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "clouds1");
-  UniformManager.setTexture("Clouds1", "content/skydome/clouds1.tga", Location);
-  UniformManager.setDefaultParameters("Clouds1", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
-
-  /*Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "clouds2");
-  UniformManager.setTexture("Clouds2", "content/skydome/clouds1.tga", Location);
-  UniformManager.setDefaultParameters("Clouds2", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);*/
-
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "tint");
-  UniformManager.setTexture("Tint1", "content/skydome/tint.tga", Location);
-  UniformManager.setDefaultParameters("Tint1", GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
- 
-  ProgramManager.installProgram("TexturePass");
-  Location = ProgramManager.getResourceLocation("TexturePass", GL_UNIFORM, "Texture");
-  UniformManager.setBlankTexture("MainPass", GL_RGBA16F, WindowData.WindowWidth, WindowData.WindowHeight, Location);
-  UniformManager.setDefaultParameters("MainPass", GL_LINEAR, GL_LINEAR, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
-  UniformManager.setBlankTexture("BrightColour", GL_RGBA16F, WindowData.WindowWidth, WindowData.WindowHeight, -1);
-  UniformManager.setDefaultParameters("BrightColour", GL_LINEAR, GL_LINEAR, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
-
-  Location = ProgramManager.getResourceLocation("TexturePass", GL_UNIFORM, "Bloom");
-  UniformManager.setBlankTexture("BloomVertical", GL_RGBA16F, WindowData.WindowWidth, WindowData.WindowHeight, Location);
-  UniformManager.setDefaultParameters("BloomVertical", GL_LINEAR, GL_LINEAR, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
-  UniformManager.setBlankTexture("BloomHorizontal", GL_RGBA16F, WindowData.WindowWidth, WindowData.WindowHeight, -1);
+  ProgramManager.installProgram("TonePass");
+  Location = ProgramManager.getResourceLocation("TonePass", GL_UNIFORM, "bBloom");
+  UniformManager.setBlankTexture("BloomHorizontal", GL_RGB8, WindowData.WindowWidth, WindowData.WindowHeight, Location);
   UniformManager.setDefaultParameters("BloomHorizontal", GL_LINEAR, GL_LINEAR, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+  UniformManager.setBlankTexture("BloomVertical", GL_RGB8, WindowData.WindowWidth, WindowData.WindowHeight, -1);
+  UniformManager.setDefaultParameters("BloomVertical", GL_LINEAR, GL_LINEAR, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+  Location = ProgramManager.getResourceLocation("TonePass", GL_UNIFORM, "lColour");
+  UniformManager.setBlankTexture("lColour", GL_RGB8, WindowData.WindowWidth, WindowData.WindowHeight, Location);
+  UniformManager.setDefaultParameters("lColour", GL_LINEAR, GL_LINEAR, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 }
 
 void renderer::prepareBuffers() {
@@ -198,8 +165,7 @@ void renderer::prepareBuffers() {
 
   GLuint StorageBindingPoint = 2;
   ProgramManager.setBinding("Compute", GL_SHADER_STORAGE_BLOCK, "StorageBuffer", StorageBindingPoint);
-  ProgramManager.setBinding("Shadows", GL_SHADER_STORAGE_BLOCK, "StorageBuffer", StorageBindingPoint);
-  ProgramManager.setBinding("Main", GL_SHADER_STORAGE_BLOCK, "StorageBuffer", StorageBindingPoint);
+  ProgramManager.setBinding("GeometryPass", GL_SHADER_STORAGE_BLOCK, "StorageBuffer", StorageBindingPoint);
   BufferManager.setBuffer("StorageBuffer", GL_SHADER_STORAGE_BUFFER, BlockData.StorageBuffer.Bytes, nullptr, 0);
   BufferManager.bindBuffer("StorageBuffer", StorageBindingPoint);
 
@@ -209,7 +175,7 @@ void renderer::prepareBuffers() {
   BufferManager.bindBuffer("ColourBuffer", ColourBindingPoint);
 
   GLuint LightBindingPoint = 4;
-  ProgramManager.setBinding("Main", GL_SHADER_STORAGE_BLOCK, "LightBuffer", LightBindingPoint);
+  ProgramManager.setBinding("LightPass", GL_SHADER_STORAGE_BLOCK, "LightBuffer", LightBindingPoint);
   ProgramManager.setBinding("Compute", GL_SHADER_STORAGE_BLOCK, "LightBuffer", LightBindingPoint);
   BufferManager.setBuffer("LightBuffer", GL_SHADER_STORAGE_BUFFER, BlockData.LightBuffer.Bytes, nullptr, 0);
   BufferManager.bindBuffer("LightBuffer", LightBindingPoint);
@@ -228,25 +194,29 @@ void renderer::prepareBuffers() {
   BufferManager.setBuffer("DrawBuffer", GL_DRAW_INDIRECT_BUFFER, sizeof(indirectstruct), &Indirect, 0);
   BufferManager.bindBuffer("DrawBuffer", GL_SHADER_STORAGE_BUFFER, DrawBindingPoint);
 
-  BufferManager.createFrameBuffers(4, "Shadows", "MainPass", "BloomVertical", "BloomHorizontal");
+  BufferManager.createFrameBuffers(4, "GeometryPass", "LightPass", "BloomVertical", "BloomHorizontal");
   GLuint Texture;
+  GLenum Attachments[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
 
-  BufferManager.createRenderBuffers(1, "RenderBufferPass");
+  BufferManager.createRenderBuffers(1, "RenderBuffer");
+  BufferManager.setRenderBuffer("RenderBuffer", GL_DEPTH_COMPONENT, WindowData.WindowWidth, WindowData.WindowHeight);
+  BufferManager.setFrameBuffer("GeometryPass", "RenderBuffer");
+  Texture = UniformManager.getTexture("gPosition");
+  BufferManager.setFrameBuffer("GeometryPass", GL_COLOR_ATTACHMENT0, Texture, 0);
+  Texture = UniformManager.getTexture("gNormal");
+  BufferManager.setFrameBuffer("GeometryPass", GL_COLOR_ATTACHMENT1, Texture, 0);
+  Texture = UniformManager.getTexture("gColour");
+  BufferManager.setFrameBuffer("GeometryPass", GL_COLOR_ATTACHMENT2, Texture, 0);
+  BufferManager.setDrawBuffer("GeometryPass", 3, Attachments);
+  BufferManager.checkFrameBuffer("GeometryPass");
 
-  Texture = UniformManager.getTexture("Shadows");
-  BufferManager.setFrameBuffer("Shadows", GL_DEPTH_ATTACHMENT, Texture, 0);
-  BufferManager.setFrameBuffer("Shadows", GL_COLOR_ATTACHMENT0, 0, 0);
-  BufferManager.checkFrameBuffer("Shadows");
-
-  Texture = UniformManager.getTexture("MainPass");
-  BufferManager.setRenderBuffer("RenderBufferPass", GL_DEPTH_COMPONENT, WindowData.WindowWidth, WindowData.WindowHeight);
-  BufferManager.setFrameBuffer("MainPass", "RenderBufferPass");
-  BufferManager.setFrameBuffer("MainPass", GL_COLOR_ATTACHMENT0, Texture, 0);
-  Texture = UniformManager.getTexture("BrightColour");
-  BufferManager.setFrameBuffer("MainPass", GL_COLOR_ATTACHMENT1, Texture, 0);
-  GLenum Attachments[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
-  BufferManager.setDrawBuffer("MainPass", 2, Attachments);
-  BufferManager.checkFrameBuffer("MainPass");
+  BufferManager.setFrameBuffer("LightPass", GL_DEPTH_ATTACHMENT, 0, 0);
+  Texture = UniformManager.getTexture("lColour");
+  BufferManager.setFrameBuffer("LightPass", GL_COLOR_ATTACHMENT0, Texture, 0);
+  Texture = UniformManager.getTexture("lBloom");
+  BufferManager.setFrameBuffer("LightPass", GL_COLOR_ATTACHMENT1, Texture, 0);
+  BufferManager.setDrawBuffer("LightPass", 2, Attachments);
+  BufferManager.checkFrameBuffer("LightPass");
 
   Texture = UniformManager.getTexture("BloomVertical");
   BufferManager.setFrameBuffer("BloomVertical", GL_DEPTH_ATTACHMENT, 0, 0);
@@ -262,48 +232,25 @@ void renderer::prepareBuffers() {
 void renderer::prepareUniforms() {
   GLint Location;
 
-  Location = ProgramManager.getResourceLocation("Shadows", GL_UNIFORM, "SSMatrix");
-  UniformManager.createUniformMatrix("SSMatrixShadows", 4, Location);
+  Location = ProgramManager.getResourceLocation("GeometryPass", GL_UNIFORM, "CSMatrix");
+  UniformManager.createUniformMatrix("CSMatrix", 4, Location);
 
-  Location = ProgramManager.getResourceLocation("Shadows", GL_UNIFORM, "WSMatrix");
-  UniformManager.createUniformMatrix("WSMatrixShadows", 4, Location);
+  Location = ProgramManager.getResourceLocation("GeometryPass", GL_UNIFORM, "WSMatrix");
+  UniformManager.createUniformMatrix("WSMatrix", 4, Location);
 
-  Location = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "SSMatrix");
-  UniformManager.createUniformMatrix("SSMatrixMain", 4, Location);
-
-  Location = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "CSMatrix");
-  UniformManager.createUniformMatrix("CSMatrixMain", 4, Location);
-
-  Location = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "WSMatrix");
-  UniformManager.createUniformMatrix("WSMatrixMain", 4, Location);
-
-  Location = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "CameraPosition");
+  Location = ProgramManager.getResourceLocation("LightPass", GL_UNIFORM, "CameraPosition");
   UniformManager.createUniform("CameraPosition", 3, Location);
 
-  Location = ProgramManager.getResourceLocation("Main", GL_UNIFORM, "SunPosition");
-  UniformManager.createUniform("SunPositionMain", 3, Location);
+  Location = ProgramManager.getResourceLocation("LightPass", GL_UNIFORM, "SunPosition");
+  UniformManager.createUniform("SunPosition", 3, Location);
   
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "SkydomeMatrix");
-  UniformManager.createUniformMatrix("SkydomeMatrix", 4, Location);
-
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "StarMatrix");
-  UniformManager.createUniformMatrix("StarMatrix", 4, Location);
-
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "SunPosition");
-  UniformManager.createUniform("SunPositionSkydome", 3, Location);
-
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "weather");
-  UniformManager.createUniform("Weather", 1, Location);
-
-  Location = ProgramManager.getResourceLocation("Skydome", GL_UNIFORM, "time");
-  UniformManager.createUniform("Time", 1, Location);
-
   Location = ProgramManager.getResourceLocation("Compute", GL_UNIFORM, "Offset");
   UniformManager.createUniform("Offset", 1, Location);
 
-  Location = ProgramManager.getResourceLocation("Bloom", GL_UNIFORM, "Texture");
+  Location = ProgramManager.getResourceLocation("BloomPass", GL_UNIFORM, "Bloom");
   UniformManager.createUniform("BloomTexture", 1, Location);
-  Location = ProgramManager.getResourceLocation("Bloom", GL_UNIFORM, "Horizontal");
+
+  Location = ProgramManager.getResourceLocation("BloomPass", GL_UNIFORM, "Horizontal");
   UniformManager.createUniform("Horizontal", 1, Location);
 }
 
@@ -319,62 +266,41 @@ void renderer::prepareState() {
 void renderer::draw() {
   dispatchEncoders();
   if (NewCameraData.DataIsReady.load()) {
-    std::copy(NewCameraData.SSMatrix, NewCameraData.SSMatrix + 16, CurrentCameraData.SSMatrix);
     std::copy(NewCameraData.CSMatrix, NewCameraData.CSMatrix + 16, CurrentCameraData.CSMatrix);
     std::copy(NewCameraData.WSMatrix, NewCameraData.WSMatrix + 16, CurrentCameraData.WSMatrix);
     std::copy(NewCameraData.Position, NewCameraData.Position + 3, CurrentCameraData.Position);
-    std::copy(NewCameraData.SkydomeMatrix, NewCameraData.SkydomeMatrix + 16, CurrentCameraData.SkydomeMatrix);
-    std::copy(NewCameraData.StarMatrix, NewCameraData.StarMatrix + 16, CurrentCameraData.StarMatrix);
     std::copy(NewCameraData.SunPosition, NewCameraData.SunPosition + 3, CurrentCameraData.SunPosition);
-    CurrentCameraData.Weather = NewCameraData.Weather;
     CurrentCameraData.Time = NewCameraData.Time;
     NewCameraData.DataIsReady.store(false); // Handshaking: State says true and Renderer changes data, Renderer says false and State changed data.
   }
 
-  BufferManager.bindFrameBuffer("Shadows", GL_FRAMEBUFFER);
-  glViewport(0, 0, 1024, 1024);
-  glClear(GL_DEPTH_BUFFER_BIT);
-  //glCullFace(GL_FRONT);
-  ProgramManager.installProgram("Shadows");
-  UniformManager.setUniform("SSMatrixShadows", (GLfloat*)(CurrentCameraData.SSMatrix));
-  UniformManager.setUniform("WSMatrixShadows", (GLfloat*)(CurrentCameraData.WSMatrix));
-  glDrawArraysIndirect(GL_TRIANGLES, 0); //36
-
-  BufferManager.bindFrameBuffer("MainPass", GL_FRAMEBUFFER);
+  BufferManager.bindFrameBuffer("GeometryPass", GL_FRAMEBUFFER);
   glViewport(0, 0, WindowData.WindowWidth, WindowData.WindowHeight);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  //glCullFace(GL_BACK);
-  
-  glDepthFunc(GL_LESS);
-  ProgramManager.installProgram("Main");
-  UniformManager.setUniform("SSMatrixMain", (GLfloat*)(CurrentCameraData.SSMatrix));
-  UniformManager.setUniform("CSMatrixMain", (GLfloat*)(CurrentCameraData.CSMatrix));
-  UniformManager.setUniform("WSMatrixMain", (GLfloat*)(CurrentCameraData.WSMatrix));
-  UniformManager.setUniform("CameraPosition", (GLfloat*)(CurrentCameraData.Position));
-  UniformManager.setUniform("SunPositionMain", (GLfloat*)(CurrentCameraData.SunPosition));
-  glDrawArraysIndirect(GL_TRIANGLES, 0); //36
-  //glDrawArraysInstancedBaseInstance(GL_TRIANGLES, 1110, 6876, 1, 0);
-  //glDrawArrays(GL_TRIANGLES, 0, 7000);
 
-  glDepthFunc(GL_LEQUAL);
-  ProgramManager.installProgram("Skydome");
-  UniformManager.setUniform("SkydomeMatrix", (GLfloat*)(CurrentCameraData.SkydomeMatrix));
-  UniformManager.setUniform("StarMatrix", (GLfloat*)(CurrentCameraData.StarMatrix));
-  UniformManager.setUniform("SunPositionSkydome", (GLfloat*)(CurrentCameraData.SunPosition));
-  UniformManager.setUniform("Weather", CurrentCameraData.Weather);
-  UniformManager.setUniform("Time", CurrentCameraData.Time);
-  glDrawArrays(GL_PATCHES, 0, 12);
+  ProgramManager.installProgram("GeometryPass");
+  UniformManager.setUniform("CSMatrix", (GLfloat*)(CurrentCameraData.CSMatrix));
+  UniformManager.setUniform("WSMatrix", (GLfloat*)(CurrentCameraData.WSMatrix));
+  glDrawArraysIndirect(GL_TRIANGLES, 0); //36
+
+  BufferManager.bindFrameBuffer("LightPass", GL_FRAMEBUFFER);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  ProgramManager.installProgram("LightPass");
+  UniformManager.setUniform("CameraPosition", (GLfloat*)(CurrentCameraData.Position));
+  UniformManager.setUniform("SunPosition", (GLfloat*)(CurrentCameraData.SunPosition));
+  glDrawArrays(GL_TRIANGLES, 0, 3);
 
   bool Horizontal = true;
   bool First = true;
   int BlurAmount = 10;
   int Texture;
-  ProgramManager.installProgram("Bloom");
   BufferManager.bindFrameBuffer("BloomVertical", GL_FRAMEBUFFER);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  ProgramManager.installProgram("BloomPass");
   for (int i = 0; i < BlurAmount; i++) {
     UniformManager.setUniform("Horizontal", Horizontal);
     if (First) {
-      Texture = UniformManager.getTextureUnit("BrightColour");
+      Texture = UniformManager.getTextureUnit("lBloom");
       First = false;
     } else if (Horizontal) {
       BufferManager.bindFrameBuffer("BloomVertical", GL_FRAMEBUFFER);
@@ -385,14 +311,14 @@ void renderer::draw() {
     }
 
     UniformManager.setUniform("BloomTexture", Texture);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
     Horizontal = !Horizontal;
   }
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  ProgramManager.installProgram("TexturePass");
-  glDrawArrays(GL_TRIANGLES, 0, 6);
+  ProgramManager.installProgram("TonePass");
+  glDrawArrays(GL_TRIANGLES, 0, 3);
 
   swapBuffers();
 }
