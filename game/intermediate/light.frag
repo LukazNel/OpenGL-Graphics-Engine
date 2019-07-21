@@ -50,7 +50,7 @@ void main() {
     if (Level != 1) {
       LinearColour += applyLight(Sun, Normal, Position, SurfaceToCamera, Colour, Level);
       for(int i = 0; i < atomicCounter(LightCount); ++i) {
-        LinearColour += applyLight(LightArray[i], Normal, Position, SurfaceToCamera, Colour, Level);
+        //LinearColour += applyLight(LightArray[i], Normal, Position, SurfaceToCamera, Colour, Level);
       }
       lBloom = vec3(0);
     }  else {

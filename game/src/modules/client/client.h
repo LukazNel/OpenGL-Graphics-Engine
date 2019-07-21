@@ -16,7 +16,7 @@ class client : public module {
  public:
   client();
   virtual void start();
-  void setCameraPointers(float* SSMatrix, float* CSMatrix, float* WSMatrix, float* Position, float* SkydomeMatrix, float* StarMatrix, float* SunPosition, float* Weather, float* Time, std::atomic<bool>* DataIsReady);
+  void setCameraPointers(float* CSMatrix, float* WSMatrix, float* Position, float* SunPosition, float* Time, std::atomic<bool>* DataIsReady);
   void update();
   void setState(std::string Type, bool State);
   void setMouse(int MouseX, int MouseY);
@@ -24,16 +24,11 @@ class client : public module {
   virtual ~client();
 private:
   struct rendererstruct {
-    float* SSMatrix;
-
     float* CSMatrix;
     float* WSMatrix;
     float* Position;
 
-    float* SkydomeMatrix;
-    float* StarMatrix;
     float* SunPosition;
-    float* Weather;
     float* Time;
     std::atomic<bool>* DataIsReady;
   };
@@ -46,15 +41,11 @@ private:
     glm::mat4 CameraLookat;
     glm::vec3 SunSpherical;
 
-    glm::mat4 SSMatrix;
     glm::mat4 WSMatrix;
     glm::mat4 CSMatrix;
     glm::vec3 Position;
 
-    glm::mat4 SkydomeMatrix;
-    glm::mat4 StarMatrix;
     glm::vec3 SunPosition;
-    float Weather;
     float WorldTime;
   };
   struct windowstruct {

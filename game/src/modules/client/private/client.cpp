@@ -1,7 +1,6 @@
 #include "client.h"
 
 client::client() {
-  CameraData.ShadowPerspective = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, -10.0f, 20.0f);
   CameraData.WSMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.0625)); // or 0.03125
   CameraData.Position = {0, 10, 0};
   CameraData.Front = {0, 0, -1};
@@ -20,15 +19,11 @@ void client::start() {
   addFunction("setMouse", &client::setMouse);
 }
 
-void client::setCameraPointers(float* SSMatrix, float* CSMatrix, float* WSMatrix, float* Position, float* SkydomeMatrix, float* StarMatrix, float* SunPosition, float* Weather, float* Time, std::atomic<bool>* DataIsReady) {
-  RendererData.SSMatrix = SSMatrix;
+void client::setCameraPointers(float* CSMatrix, float* WSMatrix, float* Position, float* SunPosition, float* Time, std::atomic<bool>* DataIsReady) {
   RendererData.CSMatrix = CSMatrix;
   RendererData.WSMatrix = WSMatrix;
   RendererData.Position = Position;
-  RendererData.SkydomeMatrix = SkydomeMatrix;
-  RendererData.StarMatrix = StarMatrix;
   RendererData.SunPosition = SunPosition;
-  RendererData.Weather = Weather;
   RendererData.Time = Time;
   RendererData.DataIsReady = DataIsReady;
 }
@@ -61,31 +56,19 @@ void client::update() {
     SunMoonPosition.y *= -1;
     SunMoonPosition.x *= -1;
   }
-  CameraData.ShadowLookat = glm::lookAt(SunMoonPosition, glm::vec3(0), glm::vec3(0, 1, 0));
 
   CameraData.CameraLookat = glm::lookAt(CameraData.Position, CameraData.Position + CameraData.Front, CameraData.Up);
 
-  CameraData.SkydomeMatrix = CameraData.CameraPerspective * glm::lookAt(glm::vec3(CameraData.Position.x, CameraData.Position.y + 0.0, CameraData.Position.z), CameraData.Position + glm::vec3(-CameraData.Front.x, -CameraData.Front.y, CameraData.Front.z), CameraData.Up);
-  CameraData.StarMatrix = glm::rotate((glm::mediump_float)Increment++ / 10000, glm::vec3(0, 1, 0));
-  
-  CameraData.Weather = 0.7;//glm::normalize(CameraData.Weather + (std::rand() % 500)/1000 * 2);
-  
   //if (anything changes)
   //  WSMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.03125));
-  
-  CameraData.SSMatrix = CameraData.ShadowPerspective * CameraData.ShadowLookat;
   CameraData.CSMatrix = CameraData.CameraPerspective * CameraData.CameraLookat;
 
   if (RendererData.DataIsReady->load() == false) {
-    std::copy(glm::value_ptr(CameraData.SSMatrix), glm::value_ptr(CameraData.SSMatrix) + 16, RendererData.SSMatrix);
     std::copy(glm::value_ptr(CameraData.CSMatrix), glm::value_ptr(CameraData.CSMatrix) + 16, RendererData.CSMatrix);
     std::copy(glm::value_ptr(CameraData.WSMatrix), glm::value_ptr(CameraData.WSMatrix) + 16, RendererData.WSMatrix);
     std::copy(glm::value_ptr(CameraData.Position), glm::value_ptr(CameraData.Position) + 3, RendererData.Position);
 
-    std::copy(glm::value_ptr(CameraData.SkydomeMatrix), glm::value_ptr(CameraData.SkydomeMatrix) + 16, RendererData.SkydomeMatrix);
-    std::copy(glm::value_ptr(CameraData.StarMatrix), glm::value_ptr(CameraData.StarMatrix) + 16, RendererData.StarMatrix);
     std::copy(glm::value_ptr(CameraData.SunPosition), glm::value_ptr(CameraData.SunPosition) + 3, RendererData.SunPosition);
-    *RendererData.Weather = CameraData.Weather;
     *RendererData.Time = CameraData.WorldTime;
     RendererData.DataIsReady->store(true);
   }

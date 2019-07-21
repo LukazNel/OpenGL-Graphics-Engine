@@ -57,7 +57,7 @@ void renderer::start() {
   addFunction("draw", &renderer::draw);
   addFunction("cleanUp", &renderer::cleanUp);
   request("Window", "getWindowData", &WindowData.ObjectPointer, &WindowData.SwapBuffers, &WindowData.WindowWidth, &WindowData.WindowHeight, &WindowData.DataIsReady);
-  request("Client", "setCameraPointers", (float*)NewCameraData.SSMatrix, (float*)NewCameraData.CSMatrix, (float*)NewCameraData.WSMatrix, (float*)NewCameraData.Position, (float*)NewCameraData.SkydomeMatrix, (float*)NewCameraData.StarMatrix, (float*)NewCameraData.SunPosition, (float*)&NewCameraData.Weather, (float*)&NewCameraData.Time, &NewCameraData.DataIsReady);
+  request("Client", "setCameraPointers", (float*)NewCameraData.CSMatrix, (float*)NewCameraData.WSMatrix, (float*)NewCameraData.Position, (float*)NewCameraData.SunPosition, (float*)&NewCameraData.Time, &NewCameraData.DataIsReady);
 }
 
 void renderer::prepare() {
